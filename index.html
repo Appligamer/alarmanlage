@@ -3,222 +3,136 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Login / Registrierung</title>
+<title>Login & Registrierung</title>
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #121212;
+    background-color: #222;
     color: #eee;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    margin: 0;
   }
-  #login-container {
-    background: #1e1e1e;
-    padding: 30px;
+  #container {
+    background-color: #333;
+    padding: 20px;
     border-radius: 8px;
-    width: 320px;
-    box-shadow: 0 0 10px #00b894;
+    width: 300px;
   }
-  input[type="text"], input[type="password"], input[type="email"] {
+  input {
     width: 100%;
-    padding: 10px;
-    margin: 10px 0 15px 0;
-    border: none;
+    padding: 8px;
+    margin: 6px 0;
     border-radius: 4px;
-    background: #333;
-    color: #eee;
-    font-size: 1em;
+    border: none;
   }
   button {
     width: 100%;
     padding: 10px;
-    background: #00b894;
+    margin-top: 10px;
     border: none;
-    border-radius: 4px;
+    background-color: #0b79d0;
+    color: white;
     font-weight: bold;
-    font-size: 1em;
+    border-radius: 4px;
     cursor: pointer;
-    color: #121212;
   }
   button:hover {
-    background: #019875;
+    background-color: #095a9d;
   }
-  #register-btn {
-    margin-top: 15px;
-    background: #0984e3;
-    color: #eee;
-  }
-  #register-btn:hover {
-    background: #0652dd;
+  #toggleRegister {
+    margin-top: 12px;
+    background-color: transparent;
+    color: #0b79d0;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
   }
   #message {
-    margin-top: 10px;
+    margin-top: 12px;
+    height: 18px;
     font-size: 0.9em;
-    color: #ff7675;
-    min-height: 20px;
-  }
-  /* Modal Styles */
-  #modal {
-    display: none;
-    position: fixed;
-    z-index: 9999;
-    left: 0; top: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.7);
-    justify-content: center;
-    align-items: center;
-  }
-  #modal-content {
-    background: #222;
-    padding: 25px;
-    border-radius: 6px;
-    width: 350px;
-    box-shadow: 0 0 15px #0984e3;
-    color: #eee;
-  }
-  #modal-close {
-    float: right;
-    cursor: pointer;
-    font-size: 1.2em;
-    margin-top: -10px;
-    margin-right: -10px;
-    color: #bbb;
-  }
-  #modal-close:hover {
-    color: #eee;
+    color: #f44336;
   }
 </style>
 </head>
 <body>
 
-<div id="login-container">
-  <h2>Login</h2>
-  <input id="login-email" type="email" placeholder="E-Mail" />
-  <input id="login-password" type="password" placeholder="Passwort" />
-  <button id="login-btn">Anmelden</button>
-  <button id="register-btn">Registrieren</button>
-  <div id="message"></div>
-</div>
+<div id="container">
+  <h2 id="formTitle">Login</h2>
 
-<!-- Modal für Registrierung -->
-<div id="modal">
-  <div id="modal-content">
-    <span id="modal-close">&times;</span>
-    <h2>Registrierung</h2>
-    <input id="register-username" type="text" placeholder="Benutzername" />
-    <input id="register-email" type="email" placeholder="E-Mail" />
-    <input id="register-password" type="password" placeholder="Passwort" />
-    <button id="register-submit-btn">Registrieren</button>
-    <div id="register-message"></div>
-  </div>
+  <input type="text" id="email" placeholder="E-Mail" />
+  <input type="password" id="password" placeholder="Passwort" />
+
+  <button id="submitBtn">Anmelden</button>
+  <button id="toggleRegister">Neuen Account erstellen</button>
+
+  <div id="message"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
   const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-  const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  const loginEmail = document.getElementById('login-email');
-  const loginPassword = document.getElementById('login-password');
-  const loginBtn = document.getElementById('login-btn');
-  const registerBtn = document.getElementById('register-btn');
-  const message = document.getElementById('message');
+  // Hier supabaseClient anstatt supabase als Variable
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  const modal = document.getElementById('modal');
-  const modalClose = document.getElementById('modal-close');
-  const registerUsername = document.getElementById('register-username');
-  const registerEmail = document.getElementById('register-email');
-  const registerPassword = document.getElementById('register-password');
-  const registerSubmitBtn = document.getElementById('register-submit-btn');
-  const registerMessage = document.getElementById('register-message');
+  let isRegisterMode = false;
 
-  async function login() {
-    message.style.color = '#ff7675';
-    message.textContent = '';
-    const email = loginEmail.value.trim();
-    const password = loginPassword.value;
+  const formTitle = document.getElementById('formTitle');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const submitBtn = document.getElementById('submitBtn');
+  const toggleRegister = document.getElementById('toggleRegister');
+  const messageDiv = document.getElementById('message');
 
+  toggleRegister.addEventListener('click', () => {
+    isRegisterMode = !isRegisterMode;
+    if (isRegisterMode) {
+      formTitle.textContent = 'Registrieren';
+      submitBtn.textContent = 'Account erstellen';
+      toggleRegister.textContent = 'Zur Anmeldung wechseln';
+      messageDiv.textContent = '';
+    } else {
+      formTitle.textContent = 'Login';
+      submitBtn.textContent = 'Anmelden';
+      toggleRegister.textContent = 'Neuen Account erstellen';
+      messageDiv.textContent = '';
+    }
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+    messageDiv.style.color = '#f44336';
     if (!email || !password) {
-      message.textContent = 'Bitte E-Mail und Passwort eingeben.';
+      messageDiv.textContent = 'Bitte E-Mail und Passwort eingeben.';
       return;
     }
 
-    console.log('Versuche Anmeldung mit:', email);
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      console.error('Login Fehler:', error);
-      message.textContent = 'Fehler bei Anmeldung: ' + error.message;
-      return;
+    if (isRegisterMode) {
+      // Registrierung
+      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+      if (error) {
+        messageDiv.textContent = 'Fehler bei Registrierung: ' + error.message;
+      } else {
+        messageDiv.style.color = '#4CAF50';
+        messageDiv.textContent = 'Registrierung erfolgreich! Bitte überprüfe deine E-Mail.';
+      }
+    } else {
+      // Login
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        messageDiv.textContent = 'Fehler bei Anmeldung: ' + error.message;
+      } else {
+        messageDiv.style.color = '#4CAF50';
+        messageDiv.textContent = 'Anmeldung erfolgreich!';
+        // Hier kannst du weiterleiten, z.B. window.location.href = 'geschuetzteSeite.html';
+      }
     }
-    if (data) {
-      console.log('Login erfolgreich:', data);
-      message.style.color = '#00b894';
-      message.textContent = 'Login erfolgreich. Du wirst weitergeleitet...';
-      // Beispiel Weiterleitung:
-      // window.location.href = 'steuerung.html';
-    }
-  }
-
-  async function register() {
-    registerMessage.style.color = '#ff7675';
-    registerMessage.textContent = '';
-    const username = registerUsername.value.trim();
-    const email = registerEmail.value.trim();
-    const password = registerPassword.value;
-
-    if (!username || !email || !password) {
-      registerMessage.textContent = 'Bitte alle Felder ausfüllen.';
-      return;
-    }
-
-    console.log('Registriere:', username, email);
-
-    const { data, error } = await supabase.auth.signUp({ email, password });
-
-    if (error) {
-      console.error('Registrierungsfehler:', error);
-      registerMessage.textContent = 'Registrierung fehlgeschlagen: ' + error.message;
-      return;
-    }
-    if (data) {
-      console.log('Registrierung erfolgreich:', data);
-      registerMessage.style.color = '#00b894';
-      registerMessage.textContent = 'Registrierung erfolgreich. Du kannst dich jetzt anmelden.';
-    }
-  }
-
-  loginBtn.addEventListener('click', login);
-  loginPassword.addEventListener('keypress', e => {
-    if (e.key === 'Enter') login();
   });
-
-  registerBtn.addEventListener('click', () => {
-    modal.style.display = 'flex';
-    registerMessage.textContent = '';
-    registerUsername.value = '';
-    registerEmail.value = '';
-    registerPassword.value = '';
-  });
-
-  modalClose.addEventListener('click', () => {
-    modal.style.display = 'none';
-  });
-
-  registerSubmitBtn.addEventListener('click', register);
-  registerPassword.addEventListener('keypress', e => {
-    if (e.key === 'Enter') register();
-  });
-
-  window.onclick = event => {
-    if (event.target === modal) {
-      modal.style.display = 'none';
-    }
-  };
 </script>
 
 </body>
