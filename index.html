@@ -1,86 +1,77 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Jahresarbeit Zugang</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #111;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-
-    h2 {
-      margin-bottom: 20px;
-    }
-
-    input[type="password"] {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      margin-bottom: 10px;
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 5px;
-      background-color: #00aa00;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    #meldung {
-      margin-top: 15px;
-      font-size: 14px;
-      color: #ff0000;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Login & Registrierung</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; }
+  input, button { width: 100%; margin: 8px 0; padding: 10px; font-size: 16px; }
+  button { cursor: pointer; }
+  #message { margin-top: 10px; color: red; }
+</style>
 </head>
 <body>
-  <h2>Zugang zur Steuerung</h2>
-  <input type="password" id="passwort" placeholder="Passwort eingeben">
-  <button onclick="pruefen()">Anmelden</button>
-  <div id="meldung"></div>
 
-  <script>
-    const korrektesPasswort = "hi"; // <-- HIER DEIN PASSWORT EINTRAGEN
+<h2>Login oder Konto erstellen</h2>
 
-    const eingabefeld = document.getElementById("passwort");
-    eingabefeld.addEventListener("keydown", function(event) {
-      if (event.key === "Enter") {
-        pruefen();
-      }
-    });
+<input id="email" type="email" placeholder="E-Mail" />
+<input id="password" type="password" placeholder="Passwort" />
 
-    function pruefen() {
-      const eingabe = document.getElementById("passwort").value;
-      const meldung = document.getElementById("meldung");
+<button id="loginBtn">Login</button>
+<button id="registerBtn">Registrieren</button>
 
-      if (eingabe === korrektesPasswort) {
-        const bestaetigt = confirm("Sind Sie sicher, dass Sie diese Seite öffnen wollen?");
-        if (bestaetigt) {
-          meldung.style.color = "lightgreen";
-          meldung.innerText = "Passwort korrekt. Zugriff erlaubt.";
-          setTimeout(() => {
-            window.location.href = "steuerung.html";
-          }, 500);
-        } else {
-          meldung.style.color = "#ff0000";
-          meldung.innerText = "Zugriff abgebrochen.";
-        }
-      } else {
-        meldung.style.color = "#ff0000";
-        meldung.innerText = "Falsches Passwort. Zugriff verweigert. du kleines opfer lol";
-      }
-    }
-  </script>
+<p id="message"></p>
+
+<script>
+// Supabase initialisieren
+const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+
+const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+const loginBtn = document.getElementById('loginBtn');
+const registerBtn = document.getElementById('registerBtn');
+const message = document.getElementById('message');
+
+function showMessage(msg, isError = true) {
+  message.style.color = isError ? 'red' : 'green';
+  message.textContent = msg;
+}
+
+loginBtn.addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!email || !password) {
+    showMessage('Bitte E-Mail und Passwort eingeben.');
+    return;
+  }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    showMessage('Login fehlgeschlagen: ' + error.message);
+  } else {
+    showMessage('Erfolgreich eingeloggt!', false);
+    // Hier z.B. Weiterleitung:
+    // window.location.href = 'steuerungsseite.html';
+  }
+});
+
+registerBtn.addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!email || !password) {
+    showMessage('Bitte E-Mail und Passwort eingeben.');
+    return;
+  }
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    showMessage('Registrierung fehlgeschlagen: ' + error.message);
+  } else {
+    showMessage('Registrierung erfolgreich! Bitte bestätige deine E-Mail.', false);
+  }
+});
+</script>
+
 </body>
 </html>
