@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<title>Alarmsteuerung</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #e9ecef; padding: 20px; }
+  h1 { color: #333; }
+  button {
+    padding: 10px 20px;
+    margin: 10px 5px 10px 0;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  button:hover { background-color: #0056b3; }
+  #status { margin-top: 20px; font-weight: bold; }
+  #log {
+    margin-top: 30px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+  #componentsStatus {
+    margin-top: 20px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 5px;
+    border: 1px solid #007bff;
+    font-weight: normal;
+    color: #007bff;
+  }
+</style>
+</head>
+<body>
+  <h1>Alarmsteuerung</h1>
+  <button id="armBtn">Alarm scharf</button>
+  <button id="disarmBtn">Alarm entschärfen</button>
+  <button id="checkStatusBtn">Status prüfen</button>
+
+  <div id="status">Status: Inaktiv</div>
+  <div id="componentsStatus"></div>
+
+  <h2>Alarmprotokoll</h2>
+  <div id="log">
+    <!-- Hier kommen später Alarmmeldungen rein -->
+    Keine Einträge.
+  </div>
+
+<script>
+  let alarmActive = false;
+  const statusDiv = document.getElementById('status');
+  const logDiv = document.getElementById('log');
+  const componentsStatusDiv = document.getElementById('componentsStatus');
+  const armBtn = document.getElementById('armBtn');
+  const disarmBtn = document.getElementById('disarmBtn');
+  const checkStatusBtn = document.getElementById('checkStatusBtn');
+
+  function addLogEntry(entry) {
+    const time = new Date().toLocaleString();
+    if (logDiv.textContent === 'Keine Einträge.') logDiv.textContent = '';
+    const p = document.createElement('p');
+    p.textContent = `[${time}] ${entry}`;
+    logDiv.prepend(p);
+  }
+
+  armBtn.addEventListener('click', () => {
+    alarmActive = true;
+    statusDiv.textContent = 'Status: Alarm scharf';
+    addLogEntry('Alarm wurde scharf geschaltet.');
+  });
+
+  disarmBtn.addEventListener('click', () => {
+    alarmActive = false;
+    statusDiv.textContent = 'Status: Alarm entschärft';
+    addLogEntry('Alarm wurde entschärft.');
+  });
+
+  checkStatusBtn.addEventListener('click', () => {
+    // Beispielhafte Statusprüfung (später per API/WebSocket mit ESP verbinden)
+    // Hier einfach simuliert:
+    const allConnected = true; // Stell dir vor, das kommt vom ESP
+    const sensorOK = true;
+    const wifiOK = true;
+    const terminalOK = true;
+
+    if (allConnected && sensorOK && wifiOK && terminalOK) {
+      componentsStatusDiv.textContent = 'Alle Komponenten sind verbunden und funktionieren einwandfrei.';
+      componentsStatusDiv.style.color = 'green';
+      addLogEntry('Statusprüfung: Alle Komponenten OK.');
+    } else {
+      componentsStatusDiv.textContent = 'Fehler: Mindestens eine Komponente funktioniert nicht oder ist nicht verbunden.';
+      componentsStatusDiv.style.color = 'red';
+      addLogEntry('Statusprüfung: Fehler erkannt.');
+    }
+  });
+</script>
+</body>
+</html>
