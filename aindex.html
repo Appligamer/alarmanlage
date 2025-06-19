@@ -1,73 +1,84 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <title>Alarmsystem Registrierung</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f0f4f8;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .box {
-      background: white;
-      padding: 40px;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
-    }
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 1em;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    .msg {
-      margin-top: 15px;
-      color: green;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Login & Registrierung</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body, input, button { font-family: Arial; margin: 0; padding: 0; }
+  body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; }
+  .container { background: white; padding: 30px; border-radius: 8px; width: 320px; box-shadow: 0 0 10px #ccc; }
+  h2 { text-align: center; margin-bottom: 20px; }
+  input, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #aaa; font-size: 1em; }
+  button { background: #007bff; color: white; border: none; cursor: pointer; }
+  button:hover { background: #0056b3; }
+  .toggle { text-align: center; margin-top: 15px; cursor: pointer; color: #007bff; }
+  .msg { text-align: center; margin-top: 10px; color: green; }
+  .error { color: red; }
+</style>
 </head>
 <body>
-  <div class="box">
-    <h2>Registrierung</h2>
-    <form id="signup-form">
-      <input type="email" id="email" placeholder="E-Mail" required />
-      <input type="password" id="password" placeholder="Passwort" required />
-      <button type="submit">Registrieren</button>
-    </form>
-    <div class="msg" id="message"></div>
-  </div>
 
-  <script>
-    const supabase = supabase.createClient(
-      "https://rshbpsxqbabpxhdztozz.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
-    );
+<div class="container">
+  <h2 id="form-title">Login</h2>
 
-    document.getElementById("signup-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+  <form id="auth-form">
+    <input type="email" id="email" placeholder="E-Mail" required />
+    <input type="password" id="password" placeholder="Passwort" required />
+    <button type="submit" id="submit-btn">Einloggen</button>
+  </form>
 
+  <div class="toggle" id="toggle-auth">Neu hier? Registrieren</div>
+  <div id="message" class="msg"></div>
+</div>
+
+<script>
+  const supabase = supabase.createClient(
+    "https://rshbpsxqbabpxhdztozz.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+  );
+
+  const form = document.getElementById("auth-form");
+  const toggle = document.getElementById("toggle-auth");
+  const messageDiv = document.getElementById("message");
+  const formTitle = document.getElementById("form-title");
+  const submitBtn = document.getElementById("submit-btn");
+
+  let isLogin = true;
+
+  toggle.addEventListener("click", () => {
+    isLogin = !isLogin;
+    if (isLogin) {
+      formTitle.textContent = "Login";
+      submitBtn.textContent = "Einloggen";
+      toggle.textContent = "Neu hier? Registrieren";
+    } else {
+      formTitle.textContent = "Registrieren";
+      submitBtn.textContent = "Registrieren";
+      toggle.textContent = "Schon registriert? Einloggen";
+    }
+    messageDiv.textContent = "";
+    messageDiv.classList.remove("error");
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    messageDiv.textContent = "";
+    messageDiv.classList.remove("error");
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+
+    if (isLogin) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        messageDiv.textContent = "Fehler: " + error.message;
+        messageDiv.classList.add("error");
+      } else {
+        // Weiterleitung zum Dashboard
+        window.location.href = "dashboard.html";
+      }
+    } else {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -75,16 +86,15 @@
           emailRedirectTo: "https://jahresarbeit-jacob.netlify.app/dashboard.html"
         }
       });
-
       if (error) {
-        document.getElementById("message").style.color = "red";
-        document.getElementById("message").textContent = "Fehler: " + error.message;
+        messageDiv.textContent = "Fehler: " + error.message;
+        messageDiv.classList.add("error");
       } else {
-        document.getElementById("message").style.color = "green";
-        document.getElementById("message").textContent =
-          "Bestätigungslink gesendet! Bitte prüfe deine E-Mails.";
+        messageDiv.textContent = "Registrierung erfolgreich! Bitte bestätige deine E-Mail.";
       }
-    });
-  </script>
+    }
+  });
+</script>
+
 </body>
 </html>

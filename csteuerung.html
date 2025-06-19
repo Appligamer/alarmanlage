@@ -3,102 +3,96 @@
 <head>
 <meta charset="UTF-8" />
 <title>Alarmsteuerung</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  body { font-family: Arial, sans-serif; background: #e9ecef; padding: 20px; }
-  h1 { color: #333; }
-  button {
-    padding: 10px 20px;
-    margin: 10px 5px 10px 0;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  button:hover { background-color: #0056b3; }
-  #status { margin-top: 20px; font-weight: bold; }
-  #log {
-    margin-top: 30px;
-    max-height: 200px;
-    overflow-y: auto;
-    background: white;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-  }
-  #componentsStatus {
-    margin-top: 20px;
-    padding: 10px;
-    background: #fff;
-    border-radius: 5px;
-    border: 1px solid #007bff;
-    font-weight: normal;
-    color: #007bff;
-  }
+  body { font-family: Arial; background: #f7f7f7; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+  .container { background: white; padding: 30px; border-radius: 8px; width: 320px; box-shadow: 0 0 15px #ccc; text-align: center; }
+  h2 { margin-bottom: 20px; }
+  button { margin: 10px 5px; padding: 12px 20px; font-size: 1em; border: none; border-radius: 5px; cursor: pointer; }
+  button#arm { background: #28a745; color: white; }
+  button#disarm { background: #dc3545; color: white; }
+  button:hover { opacity: 0.9; }
+  .ae-controls button { width: 80px; }
+  #ae-value { font-size: 1.5em; margin: 20px 0; }
+  #status { margin: 15px 0; font-weight: bold; }
+  #back { background: #007bff; color: white; margin-top: 20px; width: 100%; }
 </style>
 </head>
 <body>
-  <h1>Alarmsteuerung</h1>
-  <button id="armBtn">Alarm scharf</button>
-  <button id="disarmBtn">Alarm entschärfen</button>
-  <button id="checkStatusBtn">Status prüfen</button>
 
-  <div id="status">Status: Inaktiv</div>
-  <div id="componentsStatus"></div>
-
-  <h2>Alarmprotokoll</h2>
-  <div id="log">
-    <!-- Hier kommen später Alarmmeldungen rein -->
-    Keine Einträge.
+<div class="container">
+  <h2>Alarmsteuerung</h2>
+  <div>
+    <button id="arm">Alarm schärfen</button>
+    <button id="disarm">Alarm entschärfen</button>
   </div>
 
-<script>
-  let alarmActive = false;
-  const statusDiv = document.getElementById('status');
-  const logDiv = document.getElementById('log');
-  const componentsStatusDiv = document.getElementById('componentsStatus');
-  const armBtn = document.getElementById('armBtn');
-  const disarmBtn = document.getElementById('disarmBtn');
-  const checkStatusBtn = document.getElementById('checkStatusBtn');
+  <div class="ae-controls">
+    <button id="ae-decrease">- 10cm</button>
+    <span id="ae-value">AE: 50 cm</span>
+    <button id="ae-increase">+ 10cm</button>
+  </div>
 
-  function addLogEntry(entry) {
-    const time = new Date().toLocaleString();
-    if (logDiv.textContent === 'Keine Einträge.') logDiv.textContent = '';
-    const p = document.createElement('p');
-    p.textContent = `[${time}] ${entry}`;
-    logDiv.prepend(p);
+  <div id="status">Status: Alarm entschärft</div>
+
+  <button id="back">Zurück zum Dashboard</button>
+</div>
+
+<script>
+  const supabase = supabase.createClient(
+    "https://rshbpsxqbabpxhdztozz.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+  );
+
+  let armed = false;
+  let ae = 50; // Startwert in cm
+
+  async function checkUser() {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      window.location.href = "index.html";
+    }
   }
 
-  armBtn.addEventListener('click', () => {
-    alarmActive = true;
-    statusDiv.textContent = 'Status: Alarm scharf';
-    addLogEntry('Alarm wurde scharf geschaltet.');
+  function updateStatus() {
+    const statusEl = document.getElementById("status");
+    statusEl.textContent = "Status: Alarm " + (armed ? "geschärft" : "entschärft");
+    statusEl.style.color = armed ? "#28a745" : "#dc3545";
+  }
+
+  document.getElementById("arm").addEventListener("click", () => {
+    armed = true;
+    updateStatus();
+    // Hier: Alarm schärfen Logik ergänzen (z.B. Backend Update)
   });
 
-  disarmBtn.addEventListener('click', () => {
-    alarmActive = false;
-    statusDiv.textContent = 'Status: Alarm entschärft';
-    addLogEntry('Alarm wurde entschärft.');
+  document.getElementById("disarm").addEventListener("click", () => {
+    armed = false;
+    updateStatus();
+    // Hier: Alarm entschärfen Logik ergänzen
   });
 
-  checkStatusBtn.addEventListener('click', () => {
-    // Beispielhafte Statusprüfung (später per API/WebSocket mit ESP verbinden)
-    // Hier einfach simuliert:
-    const allConnected = true; // Stell dir vor, das kommt vom ESP
-    const sensorOK = true;
-    const wifiOK = true;
-    const terminalOK = true;
-
-    if (allConnected && sensorOK && wifiOK && terminalOK) {
-      componentsStatusDiv.textContent = 'Alle Komponenten sind verbunden und funktionieren einwandfrei.';
-      componentsStatusDiv.style.color = 'green';
-      addLogEntry('Statusprüfung: Alle Komponenten OK.');
-    } else {
-      componentsStatusDiv.textContent = 'Fehler: Mindestens eine Komponente funktioniert nicht oder ist nicht verbunden.';
-      componentsStatusDiv.style.color = 'red';
-      addLogEntry('Statusprüfung: Fehler erkannt.');
-    }
+  document.getElementById("ae-increase").addEventListener("click", () => {
+    ae += 10;
+    if (ae > 200) ae = 200; // Max 200 cm
+    document.getElementById("ae-value").textContent = "AE: " + ae + " cm";
+    // Hier AE-Update speichern
   });
+
+  document.getElementById("ae-decrease").addEventListener("click", () => {
+    ae -= 10;
+    if (ae < 10) ae = 10; // Min 10 cm
+    document.getElementById("ae-value").textContent = "AE: " + ae + " cm";
+    // Hier AE-Update speichern
+  });
+
+  document.getElementById("back").addEventListener("click", () => {
+    window.location.href = "dashboard.html";
+  });
+
+  checkUser();
+  updateStatus();
 </script>
+
 </body>
 </html>
