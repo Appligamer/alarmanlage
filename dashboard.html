@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard | Alarmanlage</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family: Arial; padding: 40px;">
+  <h1>Alarmanlagen-Dashboard</h1>
+  <p id="status">Lade...</p>
+
+  <script>
+    const supabase = supabase.createClient('https://DEIN-PROJEKT.supabase.co', 'ANON-KEY-HIER');
+
+    async function checkUser() {
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (!user) {
+        document.getElementById('status').textContent = 'Nicht eingeloggt. Weiterleitung...';
+        setTimeout(() => {
+          window.location.href = '/index.html';
+        }, 2000);
+      } else {
+        document.getElementById('status').textContent = `Eingeloggt als: ${user.email}`;
+      }
+    }
+
+    checkUser();
+  </script>
+</body>
+</html>
