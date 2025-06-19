@@ -2,99 +2,120 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Login & Registrierung</title>
+  <title>Login / Registrierung</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      margin: 0; font-family: Arial, sans-serif; background: #f0f4f8;
-      display: flex; justify-content: center; align-items: center; height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
     }
     .box {
-      background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      width: 100%; max-width: 350px;
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
     }
     input, button {
-      width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1em;
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1em;
     }
     button {
-      background: #007bff; color: white; border: none; cursor: pointer; margin-top: 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
     }
     button:hover {
       background: #0056b3;
     }
-    .toggle {
-      background: none; border: none; color: #007bff; cursor: pointer; margin-top: 10px; font-size: 0.9em;
-      text-decoration: underline;
-    }
     .msg {
-      margin-top: 15px; color: red; min-height: 18px;
+      margin-top: 15px;
+      color: green;
+    }
+    .switch {
+      margin-top: 10px;
+      color: #555;
+      cursor: pointer;
+      text-decoration: underline;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="box" id="login-box">
     <h2>Login</h2>
-    <input type="email" id="login-email" placeholder="E-Mail" required />
-    <input type="password" id="login-password" placeholder="Passwort" required />
-    <button id="login-btn">Einloggen</button>
-    <button class="toggle" id="show-signup">Kein Konto? Registrieren</button>
-    <div class="msg" id="login-msg"></div>
+    <form id="login-form">
+      <input type="email" id="login-email" placeholder="E-Mail" required />
+      <input type="password" id="login-password" placeholder="Passwort" required />
+      <button type="submit">Einloggen</button>
+    </form>
+    <div class="switch" onclick="switchToSignup()">Noch keinen Account? Registrieren</div>
+    <div class="msg" id="login-message"></div>
   </div>
 
   <div class="box" id="signup-box" style="display:none;">
     <h2>Registrierung</h2>
-    <input type="email" id="signup-email" placeholder="E-Mail" required />
-    <input type="password" id="signup-password" placeholder="Passwort" required />
-    <button id="signup-btn">Registrieren</button>
-    <button class="toggle" id="show-login">Zurück zum Login</button>
-    <div class="msg" id="signup-msg"></div>
+    <form id="signup-form">
+      <input type="email" id="signup-email" placeholder="E-Mail" required />
+      <input type="password" id="signup-password" placeholder="Passwort" required />
+      <button type="submit">Registrieren</button>
+    </form>
+    <div class="switch" onclick="switchToLogin()">Bereits registriert? Login</div>
+    <div class="msg" id="signup-message"></div>
   </div>
 
   <script>
-    const supabase = window.supabase.createClient(
-      "https://rshbpsxqbabpxhdztozz.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
-    );
+    const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    // UI Elemente
-    const loginBox = document.getElementById("login-box");
-    const signupBox = document.getElementById("signup-box");
-
-    // Umschalter Login <-> Registrierung
-    document.getElementById("show-signup").onclick = () => {
-      loginBox.style.display = "none";
-      signupBox.style.display = "block";
+    // Umschalten Login / Registrierung
+    function switchToSignup() {
+      document.getElementById("login-box").style.display = "none";
+      document.getElementById("signup-box").style.display = "block";
       clearMessages();
-    };
-    document.getElementById("show-login").onclick = () => {
-      signupBox.style.display = "none";
-      loginBox.style.display = "block";
+    }
+    function switchToLogin() {
+      document.getElementById("signup-box").style.display = "none";
+      document.getElementById("login-box").style.display = "block";
       clearMessages();
-    };
-
-    // Nachrichten löschen
+    }
     function clearMessages() {
-      document.getElementById("login-msg").textContent = "";
-      document.getElementById("signup-msg").textContent = "";
+      document.getElementById("login-message").textContent = "";
+      document.getElementById("signup-message").textContent = "";
     }
 
-    // Login
-    document.getElementById("login-btn").onclick = async () => {
-      clearMessages();
+    // Login-Formular
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
       const email = document.getElementById("login-email").value;
       const password = document.getElementById("login-password").value;
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        document.getElementById("login-msg").textContent = "Fehler: " + error.message;
-      } else {
-        window.location.href = "dashboard.html";
-      }
-    };
 
-    // Registrierung
-    document.getElementById("signup-btn").onclick = async () => {
-      clearMessages();
+      if (error) {
+        document.getElementById("login-message").textContent = "Fehler: " + error.message;
+        return;
+      }
+      // Login erfolgreich → Dashboard
+      window.location.href = "dashboard.html";
+    });
+
+    // Registrierungs-Formular
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
       const email = document.getElementById("signup-email").value;
       const password = document.getElementById("signup-password").value;
 
@@ -107,12 +128,11 @@
       });
 
       if (error) {
-        document.getElementById("signup-msg").textContent = "Fehler: " + error.message;
-      } else {
-        document.getElementById("signup-msg").style.color = "green";
-        document.getElementById("signup-msg").textContent = "Bestätigungslink gesendet. Bitte E-Mail prüfen.";
+        document.getElementById("signup-message").textContent = "Fehler: " + error.message;
+        return;
       }
-    };
+      document.getElementById("signup-message").textContent = "Bestätigungslink gesendet! Bitte überprüfe deine E-Mail.";
+    });
   </script>
 </body>
 </html>
