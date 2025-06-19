@@ -1,93 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Alarmanlage Login</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
-
+    * { box-sizing: border-box; font-family: Arial, sans-serif; }
     body {
-      margin: 0;
-      padding: 0;
-      background: #f4f4f4;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      margin: 0; padding: 0; background: #f4f4f4;
+      display: flex; align-items: center; justify-content: center;
       height: 100vh;
     }
-
     .container {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
+      background: white; padding: 30px; border-radius: 12px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
+      width: 100%; max-width: 400px;
     }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
+    h2 { text-align: center; margin-bottom: 20px; }
     input {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      width: 100%; padding: 12px; margin: 8px 0;
+      border: 1px solid #ccc; border-radius: 6px;
     }
-
     button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 12px;
-      background-color: #0077ff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
+      width: 100%; padding: 12px; margin-top: 12px;
+      background-color: #0077ff; color: white; border: none;
+      border-radius: 6px; cursor: pointer;
     }
-
-    button:hover {
-      background-color: #005fcc;
-    }
-
+    button:hover { background-color: #005fcc; }
     .tab {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
+      display: flex; justify-content: center; margin-bottom: 20px;
     }
-
     .tab button {
-      flex: 1;
-      background: none;
-      color: #333;
-      border: none;
-      border-bottom: 2px solid transparent;
-      font-size: 16px;
-      cursor: pointer;
-      padding: 10px;
+      flex: 1; background: none; color: #333; border: none;
+      border-bottom: 2px solid transparent; font-size: 16px;
+      cursor: pointer; padding: 10px;
     }
-
     .tab button.active {
-      border-bottom: 2px solid #0077ff;
-      font-weight: bold;
+      border-bottom: 2px solid #0077ff; font-weight: bold;
     }
-
-    .hidden {
-      display: none;
-    }
-
     .error {
-      color: red;
-      font-size: 0.9em;
-      margin-top: 5px;
+      color: red; font-size: 0.9em; margin-top: 5px;
     }
   </style>
 </head>
@@ -143,8 +96,14 @@
       e.preventDefault();
       errorDiv.textContent = "";
 
-      const email = emailInput.value;
-      const password = passwordInput.value;
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      // Dev-Account direkt zulassen (ohne Supabase)
+      if (email === "jcob.glathe@gmail.com" && password === "000000") {
+        window.location.href = "dashboard.html";
+        return;
+      }
 
       if (mode === "login") {
         const { data, error } = await supabaseClient.auth.signInWithPassword({
