@@ -95,7 +95,7 @@
 
 <div id="login-container">
   <h2>Login</h2>
-  <input id="login-username" type="text" placeholder="Benutzername oder E-Mail" />
+  <input id="login-email" type="email" placeholder="E-Mail" />
   <input id="login-password" type="password" placeholder="Passwort" />
   <button id="login-btn">Anmelden</button>
   <button id="register-btn">Registrieren</button>
@@ -117,13 +117,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // Supabase initialisieren mit deinen Daten
   const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
   const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
   const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  // Elemente
-  const loginUsername = document.getElementById('login-username');
+  const loginEmail = document.getElementById('login-email');
   const loginPassword = document.getElementById('login-password');
   const loginBtn = document.getElementById('login-btn');
   const registerBtn = document.getElementById('register-btn');
@@ -137,38 +135,37 @@
   const registerSubmitBtn = document.getElementById('register-submit-btn');
   const registerMessage = document.getElementById('register-message');
 
-  // Login Funktion
   async function login() {
+    message.style.color = '#ff7675';
     message.textContent = '';
-    const emailOrUsername = loginUsername.value.trim();
+    const email = loginEmail.value.trim();
     const password = loginPassword.value;
 
-    if (!emailOrUsername || !password) {
-      message.textContent = 'Bitte Benutzername/E-Mail und Passwort eingeben.';
+    if (!email || !password) {
+      message.textContent = 'Bitte E-Mail und Passwort eingeben.';
       return;
     }
 
-    // Da Supabase Anmeldung nur per E-Mail funktioniert, versuchen wir hier:
-    // Wenn Nutzername eingegeben wurde, musst du in DB nach E-Mail suchen (optional) 
-    // Zum Testen: Einfach E-Mail nehmen
-    const { data: user, error } = await supabase.auth.signInWithPassword({
-      email: emailOrUsername,
-      password: password
-    });
+    console.log('Versuche Anmeldung mit:', email);
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      console.error('Login Fehler:', error);
       message.textContent = 'Fehler bei Anmeldung: ' + error.message;
       return;
     }
-    if (user) {
+    if (data) {
+      console.log('Login erfolgreich:', data);
       message.style.color = '#00b894';
-      message.textContent = 'Login erfolgreich. Zugriff erlaubt.';
-      // Hier kannst du Weiterleitung einbauen, z.B. window.location.href = 'steuerung.html';
+      message.textContent = 'Login erfolgreich. Du wirst weitergeleitet...';
+      // Beispiel Weiterleitung:
+      // window.location.href = 'steuerung.html';
     }
   }
 
-  // Registrierungs-Funktion
   async function register() {
+    registerMessage.style.color = '#ff7675';
     registerMessage.textContent = '';
     const username = registerUsername.value.trim();
     const email = registerEmail.value.trim();
@@ -179,24 +176,24 @@
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email: email,
-      password: password
-    });
+    console.log('Registriere:', username, email);
+
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
+      console.error('Registrierungsfehler:', error);
       registerMessage.textContent = 'Registrierung fehlgeschlagen: ' + error.message;
       return;
     }
     if (data) {
+      console.log('Registrierung erfolgreich:', data);
       registerMessage.style.color = '#00b894';
       registerMessage.textContent = 'Registrierung erfolgreich. Du kannst dich jetzt anmelden.';
     }
   }
 
-  // Event-Listener
   loginBtn.addEventListener('click', login);
-  loginPassword.addEventListener('keypress', (e) => {
+  loginPassword.addEventListener('keypress', e => {
     if (e.key === 'Enter') login();
   });
 
@@ -213,12 +210,11 @@
   });
 
   registerSubmitBtn.addEventListener('click', register);
-  registerPassword.addEventListener('keypress', (e) => {
+  registerPassword.addEventListener('keypress', e => {
     if (e.key === 'Enter') register();
   });
 
-  // Modal schließen, wenn außerhalb klicken
-  window.onclick = function(event) {
+  window.onclick = event => {
     if (event.target === modal) {
       modal.style.display = 'none';
     }
