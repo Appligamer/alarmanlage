@@ -6,13 +6,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
       background: #f0f4f8;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      margin: 0;
     }
     .box {
       background: white;
@@ -21,6 +21,7 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       width: 100%;
       max-width: 400px;
+      text-align: center;
     }
     input, button {
       width: 100%;
@@ -44,94 +45,98 @@
       margin-top: 15px;
       color: green;
     }
-    .switch {
-      margin-top: 10px;
-      color: #555;
+    .toggle-link {
+      margin-top: 20px;
+      color: #007bff;
       cursor: pointer;
+      display: inline-block;
       text-decoration: underline;
-      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="box" id="login-box">
-    <h2>Login</h2>
-    <form id="login-form">
-      <input type="email" id="login-email" placeholder="E-Mail" required />
-      <input type="password" id="login-password" placeholder="Passwort" required />
-      <button type="submit">Einloggen</button>
-    </form>
-    <div class="switch" onclick="switchToSignup()">Noch keinen Account? Registrieren</div>
-    <div class="msg" id="login-message"></div>
-  </div>
+  <div class="box">
+    <h2 id="form-title">Login</h2>
 
-  <div class="box" id="signup-box" style="display:none;">
-    <h2>Registrierung</h2>
-    <form id="signup-form">
-      <input type="email" id="signup-email" placeholder="E-Mail" required />
-      <input type="password" id="signup-password" placeholder="Passwort" required />
-      <button type="submit">Registrieren</button>
+    <form id="auth-form">
+      <input type="email" id="email" placeholder="E-Mail" required />
+      <input type="password" id="password" placeholder="Passwort" required />
+      <button type="submit" id="submit-button">Anmelden</button>
     </form>
-    <div class="switch" onclick="switchToLogin()">Bereits registriert? Login</div>
-    <div class="msg" id="signup-message"></div>
+
+    <div class="msg" id="message"></div>
+
+    <div class="toggle-link" id="toggle-auth">Noch keinen Account? Registrieren</div>
   </div>
 
   <script>
     const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+    const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-    // Umschalten Login / Registrierung
-    function switchToSignup() {
-      document.getElementById("login-box").style.display = "none";
-      document.getElementById("signup-box").style.display = "block";
-      clearMessages();
-    }
-    function switchToLogin() {
-      document.getElementById("signup-box").style.display = "none";
-      document.getElementById("login-box").style.display = "block";
-      clearMessages();
-    }
-    function clearMessages() {
-      document.getElementById("login-message").textContent = "";
-      document.getElementById("signup-message").textContent = "";
-    }
+    let isLogin = true;
 
-    // Login-Formular
-    document.getElementById("login-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("login-email").value;
-      const password = document.getElementById("login-password").value;
+    const formTitle = document.getElementById("form-title");
+    const authForm = document.getElementById("auth-form");
+    const submitButton = document.getElementById("submit-button");
+    const toggleLink = document.getElementById("toggle-auth");
+    const messageDiv = document.getElementById("message");
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        document.getElementById("login-message").textContent = "Fehler: " + error.message;
-        return;
+    toggleLink.addEventListener("click", () => {
+      isLogin = !isLogin;
+      if (isLogin) {
+        formTitle.textContent = "Login";
+        submitButton.textContent = "Anmelden";
+        toggleLink.textContent = "Noch keinen Account? Registrieren";
+      } else {
+        formTitle.textContent = "Registrierung";
+        submitButton.textContent = "Registrieren";
+        toggleLink.textContent = "Schon einen Account? Anmelden";
       }
-      // Login erfolgreich → Dashboard
-      window.location.href = "dashboard.html";
+      messageDiv.textContent = "";
+      authForm.reset();
     });
 
-    // Registrierungs-Formular
-    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+    authForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById("signup-email").value;
-      const password = document.getElementById("signup-password").value;
+      messageDiv.textContent = "";
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin + "/dashboard.html"
-        }
-      });
-
-      if (error) {
-        document.getElementById("signup-message").textContent = "Fehler: " + error.message;
+      // Dev-Account Hardcoded (nur für Login, Registrierung normal)
+      if (email === "jcob.glathe@gmail.com" && password === "0000") {
+        // Direkter Login ohne Supabase für Dev-Account
+        localStorage.setItem("devAccount", "true");
+        window.location.href = "dashboard.html";
         return;
       }
-      document.getElementById("signup-message").textContent = "Bestätigungslink gesendet! Bitte überprüfe deine E-Mail.";
+
+      if (isLogin) {
+        // Login
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          messageDiv.style.color = "red";
+          messageDiv.textContent = "Fehler: " + error.message;
+          return;
+        }
+        window.location.href = "dashboard.html";
+      } else {
+        // Registrierung mit Supabase (Email Bestätigung optional)
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin + "/dashboard.html"
+          }
+        });
+        if (error) {
+          messageDiv.style.color = "red";
+          messageDiv.textContent = "Fehler: " + error.message;
+          return;
+        }
+        messageDiv.style.color = "green";
+        messageDiv.textContent = "Bestätigungslink gesendet. Bitte prüfe deine E-Mails.";
+      }
     });
   </script>
 </body>
