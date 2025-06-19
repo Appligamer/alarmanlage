@@ -1,53 +1,68 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<title>Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  body { font-family: Arial; background: #fafafa; display: flex; justify-content: center; align-items: center; height: 100vh; margin:0; }
-  .box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 12px #ccc; width: 320px; text-align: center; }
-  h2 { margin-bottom: 20px; }
-  button { padding: 10px 20px; font-size: 1em; border: none; background: #007bff; color: white; border-radius: 5px; cursor: pointer; margin-top: 20px; }
-  button:hover { background: #0056b3; }
-  #user-email { margin-bottom: 20px; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif; background: #eaf0f6; margin: 0; padding: 0;
+      display: flex; justify-content: center; align-items: center; height: 100vh;
+    }
+    .dashboard {
+      background: white; padding: 40px; border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1); text-align: center;
+      width: 320px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    button {
+      background-color: #007bff; border: none; color: white; padding: 12px;
+      font-size: 1em; border-radius: 6px; cursor: pointer; width: 100%;
+      margin-top: 15px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .logout {
+      background-color: #ff4d4d; margin-top: 30px;
+    }
+  </style>
 </head>
 <body>
+  <div class="dashboard">
+    <h1>Willkommen</h1>
+    <p id="userEmail">Lade Benutzerdaten...</p>
+    <button onclick="goToControl()">Alarmanlage steuern</button>
+    <button class="logout" onclick="logout()">Abmelden</button>
+  </div>
 
-<div class="box">
-  <h2>Dashboard</h2>
-  <p id="user-email">Lade Benutzerinfo...</p>
-  <button id="go-control">Zur Steuerung</button>
-  <button id="logout" style="background:#dc3545; margin-top:10px;">Abmelden</button>
-</div>
+  <script>
+    const supabase = window.supabase.createClient(
+      "https://rshbpsxqbabpxhdztozz.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+    );
 
-<script>
-  const supabase = supabase.createClient(
-    "https://rshbpsxqbabpxhdztozz.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
-  );
-
-  async function loadUser() {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      window.location.href = "index.html";
-      return;
+    async function loadUser() {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        window.location.href = "index.html";
+      } else {
+        document.getElementById("userEmail").textContent = "Eingeloggt als: " + data.user.email;
+      }
     }
-    document.getElementById("user-email").textContent = "Eingeloggt als: " + data.user.email;
-  }
 
-  document.getElementById("go-control").addEventListener("click", () => {
-    window.location.href = "control.html";
-  });
+    async function logout() {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    }
 
-  document.getElementById("logout").addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    window.location.href = "index.html";
-  });
+    function goToControl() {
+      window.location.href = "control.html";
+    }
 
-  loadUser();
-</script>
-
+    loadUser();
+  </script>
 </body>
 </html>
