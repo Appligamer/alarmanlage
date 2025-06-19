@@ -2,30 +2,76 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard | Alarmanlage</title>
+  <title>Alarmsystem Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #eaf0f6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .dashboard {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .logout {
+      margin-top: 30px;
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 1em;
+    }
+  </style>
 </head>
-<body style="font-family: Arial; padding: 40px;">
-  <h1>Alarmanlagen-Dashboard</h1>
-  <p id="status">Lade...</p>
+<body>
+  <div class="dashboard">
+    <h1>Willkommen</h1>
+    <p id="userEmail">Lade Benutzerdaten...</p>
+    <button class="logout" onclick="logout()">Abmelden</button>
+  </div>
 
   <script>
-    const supabase = supabase.createClient('https://DEIN-PROJEKT.supabase.co', 'ANON-KEY-HIER');
+    const supabase = supabase.createClient(
+      "https://rshbpsxqbabpxhdztozz.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+    );
 
-    async function checkUser() {
-      const { data: { user }, error } = await supabase.auth.getUser();
+    async function loadUser() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
-      if (!user) {
-        document.getElementById('status').textContent = 'Nicht eingeloggt. Weiterleitung...';
-        setTimeout(() => {
-          window.location.href = '/index.html';
-        }, 2000);
+      if (user) {
+        document.getElementById("userEmail").textContent = "Eingeloggt als: " + user.email;
       } else {
-        document.getElementById('status').textContent = `Eingeloggt als: ${user.email}`;
+        window.location.href = "index.html"; // zurück zur Login-Seite
       }
     }
 
-    checkUser();
+    async function logout() {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    }
+
+    loadUser();
   </script>
 </body>
 </html>

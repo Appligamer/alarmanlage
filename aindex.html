@@ -2,38 +2,87 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Registrierung | Alarmsystem</title>
+  <title>Alarmsystem Registrierung</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .box {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .msg {
+      margin-top: 15px;
+      color: green;
+    }
+  </style>
 </head>
-<body style="font-family: Arial; padding: 40px;">
-  <h1>Registriere dein Konto</h1>
-  <form id="signup-form">
-    <input type="email" id="email" placeholder="Deine E-Mail" required /><br /><br />
-    <input type="password" id="password" placeholder="Passwort" required /><br /><br />
-    <button type="submit">Registrieren</button>
-  </form>
-  <p id="message"></p>
+<body>
+  <div class="box">
+    <h2>Registrierung</h2>
+    <form id="signup-form">
+      <input type="email" id="email" placeholder="E-Mail" required />
+      <input type="password" id="password" placeholder="Passwort" required />
+      <button type="submit">Registrieren</button>
+    </form>
+    <div class="msg" id="message"></div>
+  </div>
 
   <script>
-    const supabase = supabase.createClient('https://DEIN-PROJEKT.supabase.co', 'ANON-KEY-HIER');
+    const supabase = supabase.createClient(
+      "https://rshbpsxqbabpxhdztozz.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+    );
 
-    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: 'https://meinprojekt.de/dashboard.html'
+          emailRedirectTo: "https://jahresarbeit-jacob.netlify.app/dashboard.html"
         }
       });
 
       if (error) {
-        document.getElementById('message').textContent = 'Fehler: ' + error.message;
+        document.getElementById("message").style.color = "red";
+        document.getElementById("message").textContent = "Fehler: " + error.message;
       } else {
-        document.getElementById('message').textContent = 'E-Mail zur Bestätigung gesendet!';
+        document.getElementById("message").style.color = "green";
+        document.getElementById("message").textContent =
+          "Bestätigungslink gesendet! Bitte prüfe deine E-Mails.";
       }
     });
   </script>
