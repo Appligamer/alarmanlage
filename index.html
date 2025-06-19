@@ -1,139 +1,41 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Login & Registrierung</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #222;
-    color: #eee;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-  }
-  #container {
-    background-color: #333;
-    padding: 20px;
-    border-radius: 8px;
-    width: 300px;
-  }
-  input {
-    width: 100%;
-    padding: 8px;
-    margin: 6px 0;
-    border-radius: 4px;
-    border: none;
-  }
-  button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    border: none;
-    background-color: #0b79d0;
-    color: white;
-    font-weight: bold;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  button:hover {
-    background-color: #095a9d;
-  }
-  #toggleRegister {
-    margin-top: 12px;
-    background-color: transparent;
-    color: #0b79d0;
-    border: none;
-    cursor: pointer;
-    text-decoration: underline;
-  }
-  #message {
-    margin-top: 12px;
-    height: 18px;
-    font-size: 0.9em;
-    color: #f44336;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Registrierung | Alarmsystem</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body style="font-family: Arial; padding: 40px;">
+  <h1>Registriere dein Konto</h1>
+  <form id="signup-form">
+    <input type="email" id="email" placeholder="Deine E-Mail" required /><br /><br />
+    <input type="password" id="password" placeholder="Passwort" required /><br /><br />
+    <button type="submit">Registrieren</button>
+  </form>
+  <p id="message"></p>
 
-<div id="container">
-  <h2 id="formTitle">Login</h2>
+  <script>
+    const supabase = supabase.createClient('https://DEIN-PROJEKT.supabase.co', 'ANON-KEY-HIER');
 
-  <input type="text" id="email" placeholder="E-Mail" />
-  <input type="password" id="password" placeholder="Passwort" />
+    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
 
-  <button id="submitBtn">Anmelden</button>
-  <button id="toggleRegister">Neuen Account erstellen</button>
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: 'https://meinprojekt.de/dashboard.html'
+        }
+      });
 
-  <div id="message"></div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-  const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-
-  // Hier supabaseClient anstatt supabase als Variable
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
-
-  let isRegisterMode = false;
-
-  const formTitle = document.getElementById('formTitle');
-  const emailInput = document.getElementById('email');
-  const passwordInput = document.getElementById('password');
-  const submitBtn = document.getElementById('submitBtn');
-  const toggleRegister = document.getElementById('toggleRegister');
-  const messageDiv = document.getElementById('message');
-
-  toggleRegister.addEventListener('click', () => {
-    isRegisterMode = !isRegisterMode;
-    if (isRegisterMode) {
-      formTitle.textContent = 'Registrieren';
-      submitBtn.textContent = 'Account erstellen';
-      toggleRegister.textContent = 'Zur Anmeldung wechseln';
-      messageDiv.textContent = '';
-    } else {
-      formTitle.textContent = 'Login';
-      submitBtn.textContent = 'Anmelden';
-      toggleRegister.textContent = 'Neuen Account erstellen';
-      messageDiv.textContent = '';
-    }
-  });
-
-  submitBtn.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    messageDiv.style.color = '#f44336';
-    if (!email || !password) {
-      messageDiv.textContent = 'Bitte E-Mail und Passwort eingeben.';
-      return;
-    }
-
-    if (isRegisterMode) {
-      // Registrierung
-      const { data, error } = await supabaseClient.auth.signUp({ email, password });
       if (error) {
-        messageDiv.textContent = 'Fehler bei Registrierung: ' + error.message;
+        document.getElementById('message').textContent = 'Fehler: ' + error.message;
       } else {
-        messageDiv.style.color = '#4CAF50';
-        messageDiv.textContent = 'Registrierung erfolgreich! Bitte überprüfe deine E-Mail.';
+        document.getElementById('message').textContent = 'E-Mail zur Bestätigung gesendet!';
       }
-    } else {
-      // Login
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) {
-        messageDiv.textContent = 'Fehler bei Anmeldung: ' + error.message;
-      } else {
-        messageDiv.style.color = '#4CAF50';
-        messageDiv.textContent = 'Anmeldung erfolgreich!';
-        // Hier kannst du weiterleiten, z.B. window.location.href = 'geschuetzteSeite.html';
-      }
-    }
-  });
-</script>
-
+    });
+  </script>
 </body>
 </html>
