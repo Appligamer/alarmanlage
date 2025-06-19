@@ -2,136 +2,321 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Alarmanlage Login</title>
+  <title>Alarmanlagen Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; font-family: Arial, sans-serif; }
     body {
-      margin: 0; padding: 0; background: #f4f4f4;
-      display: flex; align-items: center; justify-content: center;
-      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0; padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 30px;
     }
-    .container {
-      background: white; padding: 30px; border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      width: 100%; max-width: 400px;
+    #login, #dashboard {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.07);
+      max-width: 400px;
+      width: 100%;
     }
-    h2 { text-align: center; margin-bottom: 20px; }
-    input {
-      width: 100%; padding: 12px; margin: 8px 0;
-      border: 1px solid #ccc; border-radius: 6px;
+    #dashboard {
+      max-width: 900px;
+      display: none;
+      flex-direction: column;
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 10px;
+      width: 100%;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
     button {
-      width: 100%; padding: 12px; margin-top: 12px;
-      background-color: #0077ff; color: white; border: none;
-      border-radius: 6px; cursor: pointer;
+      cursor: pointer;
+      border: none;
+      background: #007bff;
+      color: white;
+      transition: background 0.3s ease;
     }
-    button:hover { background-color: #005fcc; }
-    .tab {
-      display: flex; justify-content: center; margin-bottom: 20px;
+    button:hover {
+      background: #0056b3;
     }
-    .tab button {
-      flex: 1; background: none; color: #333; border: none;
-      border-bottom: 2px solid transparent; font-size: 16px;
-      cursor: pointer; padding: 10px;
+    h1 {
+      margin-bottom: 15px;
+      font-weight: 600;
     }
-    .tab button.active {
-      border-bottom: 2px solid #0077ff; font-weight: bold;
+    .system {
+      background: #f9f9f9;
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.05);
     }
-    .error {
-      color: red; font-size: 0.9em; margin-top: 5px;
+    .system-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .status-led {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: gray;
+      display: inline-block;
+      margin-left: 10px;
+    }
+    .armed {
+      background-color: #28a745 !important;
+    }
+    .disarmed {
+      background-color: #ffc107 !important;
+    }
+    .controls button {
+      width: auto;
+      margin: 0 5px;
+      padding: 8px 16px;
+    }
+    .add-system {
+      margin-top: 20px;
+      max-width: 400px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="tab">
-      <button id="loginTab" class="active">Login</button>
-      <button id="registerTab">Registrieren</button>
-    </div>
+  <div id="login">
+    <h1>Login</h1>
+    <input type="email" id="email" placeholder="E-Mail" value="jcob.glathe@gmail.com" />
+    <input type="password" id="password" placeholder="Passwort" value="000000" />
+    <button id="btnLogin">Login</button>
+    <div id="loginError" style="color: red; margin-top: 10px;"></div>
+  </div>
 
-    <form id="authForm">
-      <input type="email" id="email" placeholder="E-Mail" required />
-      <input type="password" id="password" placeholder="Passwort" required />
-      <div id="error" class="error"></div>
-      <button type="submit" id="submitBtn">Login</button>
-    </form>
+  <div id="dashboard">
+    <h1>Willkommen, <span id="userEmail"></span></h1>
+    <button id="btnLogout" style="width:auto; background:#dc3545; margin-bottom: 15px;">Logout</button>
+
+    <div id="systemsContainer"></div>
+
+    <div class="add-system">
+      <h3>Neues System hinzufügen</h3>
+      <input type="text" id="newSystemName" placeholder="Systemname" />
+      <button id="btnAddSystem">Hinzufügen</button>
+      <div id="addSystemError" style="color: red; margin-top: 8px;"></div>
+    </div>
   </div>
 
   <script>
+    // Supabase initialisieren
     const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co";
-    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+    // UI-Elemente
+    const loginDiv = document.getElementById('login');
+    const dashboardDiv = document.getElementById('dashboard');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const btnLogin = document.getElementById('btnLogin');
+    const loginError = document.getElementById('loginError');
+    const userEmailSpan = document.getElementById('userEmail');
+    const btnLogout = document.getElementById('btnLogout');
+    const systemsContainer = document.getElementById('systemsContainer');
+    const btnAddSystem = document.getElementById('btnAddSystem');
+    const newSystemNameInput = document.getElementById('newSystemName');
+    const addSystemError = document.getElementById('addSystemError');
 
-    const authForm = document.getElementById("authForm");
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const submitBtn = document.getElementById("submitBtn");
-    const errorDiv = document.getElementById("error");
+    // Aktueller User
+    let currentUser = null;
 
-    const loginTab = document.getElementById("loginTab");
-    const registerTab = document.getElementById("registerTab");
-
-    let mode = "login";
-
-    loginTab.addEventListener("click", () => {
-      mode = "login";
-      loginTab.classList.add("active");
-      registerTab.classList.remove("active");
-      submitBtn.textContent = "Login";
-      errorDiv.textContent = "";
-    });
-
-    registerTab.addEventListener("click", () => {
-      mode = "register";
-      registerTab.classList.add("active");
-      loginTab.classList.remove("active");
-      submitBtn.textContent = "Registrieren";
-      errorDiv.textContent = "";
-    });
-
-    authForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errorDiv.textContent = "";
-
+    // Login Funktion
+    btnLogin.onclick = async () => {
+      loginError.textContent = "";
       const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
+      const password = passwordInput.value;
 
-      // Dev-Account direkt zulassen (ohne Supabase)
-      if (email === "jcob.glathe@gmail.com" && password === "000000") {
-        window.location.href = "dashboard.html";
+      if (!email || !password) {
+        loginError.textContent = "Bitte E-Mail und Passwort eingeben.";
         return;
       }
 
-      if (mode === "login") {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-          email,
-          password
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (error) {
-          errorDiv.textContent = error.message;
-        } else {
-          window.location.href = "dashboard.html";
-        }
-      } else {
-        const { data, error } = await supabaseClient.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin + "/dashboard.html"
-          }
-        });
-
-        if (error) {
-          errorDiv.textContent = error.message;
-        } else {
-          alert("Bestätigungslink gesendet. Bitte überprüfe deine E-Mails.");
-        }
+      if (error) {
+        loginError.textContent = "Login fehlgeschlagen: " + error.message;
+        return;
       }
-    });
+
+      currentUser = data.user;
+      if (!currentUser) {
+        loginError.textContent = "Login fehlgeschlagen: Benutzer nicht gefunden.";
+        return;
+      }
+
+      loginDiv.style.display = 'none';
+      dashboardDiv.style.display = 'flex';
+      userEmailSpan.textContent = currentUser.email;
+      await loadSystems();
+    };
+
+    // Logout Funktion
+    btnLogout.onclick = async () => {
+      await supabase.auth.signOut();
+      currentUser = null;
+      dashboardDiv.style.display = 'none';
+      loginDiv.style.display = 'block';
+      emailInput.value = "";
+      passwordInput.value = "";
+      systemsContainer.innerHTML = "";
+      loginError.textContent = "";
+      addSystemError.textContent = "";
+    };
+
+    // Systeme laden
+    async function loadSystems() {
+      if (!currentUser) return;
+
+      const { data, error } = await supabase
+        .from('systeme')
+        .select('*')
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        systemsContainer.innerHTML = "<p>Fehler beim Laden der Systeme: " + error.message + "</p>";
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        systemsContainer.innerHTML = "<p>Keine Systeme gefunden.</p>";
+        return;
+      }
+
+      systemsContainer.innerHTML = "";
+
+      data.forEach(system => {
+        const div = document.createElement('div');
+        div.className = 'system';
+
+        // Status-LED Farbe
+        const ledColor = system.status ? '#28a745' : '#ffc107';
+
+        div.innerHTML = `
+          <div class="system-header">
+            <strong>${system.name || "System #" + system.id}</strong>
+            <span class="status-led" style="background:${ledColor}"></span>
+          </div>
+          <p>Status: <b>${system.status ? "Scharf" : "Entschärft"}</b></p>
+          <p>Alarmentfernung (AE): <b>${system.ae || 100} cm</b></p>
+          <div class="controls">
+            <button onclick="setSystemStatus('${system.id}', true)">Scharf stellen</button>
+            <button onclick="setSystemStatus('${system.id}', false)">Entschärfen</button>
+            <button onclick="adjustSystemAe('${system.id}', -10)">-10 cm</button>
+            <button onclick="adjustSystemAe('${system.id}', 10)">+10 cm</button>
+          </div>
+        `;
+
+        systemsContainer.appendChild(div);
+      });
+    }
+
+    // Systemstatus ändern
+    async function setSystemStatus(systemId, armed) {
+      if (!currentUser) return;
+
+      const { error } = await supabase
+        .from('systeme')
+        .update({ status: armed })
+        .eq('id', systemId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        alert("Fehler beim Ändern des Status: " + error.message);
+        return;
+      }
+      await loadSystems();
+    }
+
+    // AE anpassen
+    async function adjustSystemAe(systemId, delta) {
+      if (!currentUser) return;
+
+      // Aktuellen AE-Wert holen
+      const { data, error } = await supabase
+        .from('systeme')
+        .select('ae')
+        .eq('id', systemId)
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (error) {
+        alert("Fehler beim Lesen des AE: " + error.message);
+        return;
+      }
+
+      let newAe = (data.ae || 100) + delta;
+      if (newAe < 10) newAe = 10;
+      if (newAe > 1000) newAe = 1000;
+
+      const { error: updateError } = await supabase
+        .from('systeme')
+        .update({ ae: newAe })
+        .eq('id', systemId)
+        .eq('user_id', currentUser.id);
+
+      if (updateError) {
+        alert("Fehler beim Aktualisieren des AE: " + updateError.message);
+        return;
+      }
+      await loadSystems();
+    }
+
+    // Neues System hinzufügen
+    btnAddSystem.onclick = async () => {
+      addSystemError.textContent = "";
+      const name = newSystemNameInput.value.trim();
+
+      if (!name) {
+        addSystemError.textContent = "Bitte einen Systemnamen eingeben.";
+        return;
+      }
+
+      if (!currentUser) {
+        addSystemError.textContent = "Bitte zuerst einloggen.";
+        return;
+      }
+
+      const { error } = await supabase
+        .from('systeme')
+        .insert([{ name, user_id: currentUser.id, status: false, ae: 100 }]);
+
+      if (error) {
+        addSystemError.textContent = "Fehler beim Hinzufügen: " + error.message;
+        return;
+      }
+
+      newSystemNameInput.value = "";
+      await loadSystems();
+    };
+
+    // Prüfe Loginstatus beim Laden
+    async function checkUser() {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        currentUser = data.session.user;
+        loginDiv.style.display = 'none';
+        dashboardDiv.style.display = 'flex';
+        userEmailSpan.textContent = currentUser.email;
+        await loadSystems();
+      }
+    }
+
+    checkUser();
+
   </script>
 </body>
 </html>
