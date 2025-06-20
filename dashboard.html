@@ -1,75 +1,119 @@
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/+esm" type="module"></script>
-<script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/+esm'
-
-  const supabase = createClient(
-    'https://rshbpsxqbabpxhdztozz.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
-  );
-
-  const systemsDiv = document.getElementById('systems');
-  const statusDiv = document.getElementById('status');
-  const addButton = document.getElementById('add-alarm');
-
-  async function loadAlarms() {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-    if (!user) {
-      statusDiv.textContent = "Nicht eingeloggt.";
-      return;
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --primary: #007bff;
+      --background: #f4f4f7;
+      --card-bg: #fff;
+      --text: #222;
+      --border: #ddd;
     }
-
-    const { data, error } = await supabase
-      .from('alarmsystems')
-      .select('*')
-      .eq('user_id', user.id);
-
-    if (error) {
-      statusDiv.textContent = "Fehler beim Laden der Systeme.";
-      console.error(error);
-      return;
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Segoe UI', sans-serif;
+      background: var(--background); color: var(--text);
     }
-
-    systemsDiv.innerHTML = '';
-    data.forEach(system => {
-      const div = document.createElement('div');
-      div.className = 'card';
-      div.innerHTML = `
-        <div class="card-title">${system.name}</div>
-        <div>Status: ${system.status}</div>
-        <div>Alarmentfernung: ${system.ae_distance} cm</div>
-        <button onclick="window.location.href='control.html?id=${system.id}'">Steuerung öffnen</button>
-      `;
-      systemsDiv.appendChild(div);
-    });
-
-    statusDiv.textContent = data.length === 0 ? "Keine Alarmanlagen vorhanden." : "Fertig geladen.";
-  }
-
-  addButton.addEventListener('click', async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-    if (!user) {
-      alert("Du musst eingeloggt sein.");
-      return;
+    .container {
+      max-width: 800px; margin: 40px auto; padding: 0 20px;
     }
+    h1 { margin-bottom: 20px; }
+    button {
+      background: var(--primary); color:white;
+      border:none; padding:12px 18px;
+      border-radius:5px; cursor:pointer;
+      font-size:1rem;
+    }
+    button:hover { background:#0056b3; }
+    .card {
+      background: var(--card-bg);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:16px;
+      margin:20px 0;
+      box-shadow:0 2px 4px rgba(0,0,0,0.05);
+    }
+    .card-title { font-weight:bold; font-size:1.1rem; }
+    .card button { margin-top:10px; }
+    #status { margin-top:30px; color:#666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Dashboard</h1>
+    <button id="add-alarm">Alarmanlage hinzufügen</button>
+    <div id="systems"></div>
+    <div id="status">Lade...</div>
+  </div>
 
-    const { error } = await supabase.from('alarmsystems').insert([
-      {
-        name: 'Neue Alarmanlage',
-        user_id: user.id,
-        status: 'aus',
-        ae_distance: 50
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.28.0/+esm';
+
+    const supabase = createClient(
+      'https://rshbpsxqbabpxhdztozz.supabase.co',
+      'YOUR_ANON_KEY'
+    );
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const systemsDiv = document.getElementById('systems');
+      const statusDiv = document.getElementById('status');
+      const addBtn = document.getElementById('add-alarm');
+
+      async function loadAlarms() {
+        const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+        if (sessErr || !session?.user) {
+          statusDiv.textContent = 'Nicht eingeloggt.';
+          return;
+        }
+
+        const userId = session.user.id;
+        const { data, error } = await supabase
+          .from('alarmsystems')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (error) {
+          statusDiv.textContent = 'Fehler beim Laden.';
+          console.error(error);
+          return;
+        }
+
+        systemsDiv.innerHTML = '';
+        data.forEach(s => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `
+            <div class="card-title">${s.name}</div>
+            <div>Status: ${s.status}</div>
+            <div>AE: ${s.ae_distance} cm</div>
+            <button onclick="location.href='control.html?id=${s.id}'">Steuern</button>
+          `;
+          systemsDiv.append(div);
+        });
+
+        statusDiv.textContent = data.length ? 'Fertig geladen.' : 'Keine Alarmanlagen.';
       }
-    ]);
 
-    if (error) {
-      alert("Fehler beim Hinzufügen.");
-      return;
-    }
+      addBtn.addEventListener('click', async () => {
+        const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+        if (sessErr || !session?.user) return alert('Login nötig.');
 
-    loadAlarms();
-  });
+        const { error } = await supabase.from('alarmsystems').insert([{
+          name: 'Neue Alarmanlage',
+          user_id: session.user.id,
+          status: 'aus',
+          ae_distance: 50
+        }]);
+        if (error) return alert('Fehler beim Hinzufügen.');
 
-  loadAlarms();
-</script>
+        loadAlarms();
+      });
+
+      loadAlarms();
+    });
+  </script>
+</body>
+</html>

@@ -1,90 +1,133 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <title>Alarmanlage Steuerung</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.28.0/dist/supabase.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Alarmsteuerung</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; max-width: 500px; margin: auto; }
-    h1 { margin-bottom: 1em; }
-    #alarm-id { font-weight: bold; margin-bottom: 20px; }
-    button {
-      margin: 5px 10px 20px 0;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      background-color: #007bff;
-      color: white;
-      font-size: 1em;
-      transition: background-color 0.3s;
+    :root {
+      --primary: #007bff;
+      --background: #f4f4f7;
+      --card-bg: #fff;
+      --text: #222;
+      --border: #ddd;
     }
-    button:hover { background-color: #0056b3; }
-    #status { margin-top: 20px; font-weight: bold; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Segoe UI', sans-serif;
+      background: var(--background); color: var(--text);
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh;
+    }
+    .box {
+      background: var(--card-bg); padding: 30px;
+      border-radius: 8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);
+      width: 100%; max-width: 360px; text-align: center;
+    }
+    button {
+      background: var(--primary); color: white;
+      border:none; padding:10px 18px;
+      border-radius:5px; cursor:pointer;
+      margin:8px;
+    }
+    button:hover { background:#0056b3; }
+    input[type="range"] { width:100%; }
+    #status { margin-top: 15px; color: #666; }
   </style>
 </head>
 <body>
-
-  <h1>Alarmanlage Steuerung</h1>
-  <div id="alarm-id">Lade Alarmanlagen-ID...</div>
-
-  <button id="arm-btn">Alarm schärfen</button>
-  <button id="disarm-btn">Alarm entschärfen</button>
-
-  <div>
-    <label for="ae-range">Alarmentfernung (AE): </label>
-    <input type="range" id="ae-range" min="0" max="100" step="10" value="50" />
-    <span id="ae-value">50 cm</span>
+  <div class="box">
+    <h2>Alarmsteuerung</h2>
+    <div id="alarm-id">ID: –</div>
+    <button id="arm-btn">Schärfen</button>
+    <button id="disarm-btn">Entschärfen</button>
+    <div>
+      <label>AE:</label>
+      <input type="range" id="ae-range" min="0" max="100" step="5">
+      <span id="ae-value">– cm</span>
+    </div>
+    <div id="status">Lade...</div>
   </div>
 
-  <div id="status"></div>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.28.0/+esm';
 
-  <script>
-    // Supabase initialisieren (deine Werte einfügen)
-    const supabase = supabase.createClient(
-      "https://rshbpsxqbabpxhdztozz.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+    const supabase = createClient(
+      'https://rshbpsxqbabpxhdztozz.supabase.co',
+      'YOUR_ANON_KEY'
     );
 
-    // 1. Alarmanlagen-ID aus URL holen
-    function getAlarmId() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('id');
-    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      const alarmEl = document.getElementById('alarm-id');
+      const armBtn = document.getElementById('arm-btn');
+      const disarmBtn = document.getElementById('disarm-btn');
+      const aeRange = document.getElementById('ae-range');
+      const aeValue = document.getElementById('ae-value');
+      const status = document.getElementById('status');
 
-    // 2. Anzeige Alarm-ID
-    const alarmId = getAlarmId();
-    const alarmIdDiv = document.getElementById('alarm-id');
+      if (!id) {
+        status.textContent = 'Keine ID gefunden.';
+        return;
+      }
+      alarmEl.textContent = `ID: ${id}`;
 
-    if (!alarmId) {
-      alarmIdDiv.textContent = "Keine Alarmanlagen-ID angegeben.";
-    } else {
-      alarmIdDiv.textContent = `Steuerung für Alarmanlage: ${alarmId}`;
-    }
+      async function load() {
+        const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+        if (sessErr || !session?.user) {
+          status.textContent = 'Login erforderlich.';
+          return;
+        }
 
-    // 3. Event-Handler für Buttons
-    const statusDiv = document.getElementById('status');
-    const armBtn = document.getElementById('arm-btn');
-    const disarmBtn = document.getElementById('disarm-btn');
-    const aeRange = document.getElementById('ae-range');
-    const aeValue = document.getElementById('ae-value');
+        const { data, error } = await supabase
+          .from('alarmsystems')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-    armBtn.addEventListener('click', () => {
-      statusDiv.textContent = `Alarmanlage ${alarmId} wurde geschärft.`;
-      // Hier API-Call / Supabase Update einfügen, um Status zu speichern
+        if (error) {
+          status.textContent = 'Fehler beim Laden.';
+          console.error(error);
+          return;
+        }
+
+        aeRange.value = data.ae_distance;
+        aeValue.textContent = `${data.ae_distance} cm`;
+        status.textContent = 'Bereit';
+      }
+
+      armBtn.addEventListener('click', async () => {
+        await updateStatus('scharf');
+      });
+      disarmBtn.addEventListener('click', async () => {
+        await updateStatus('aus');
+      });
+      aeRange.addEventListener('input', async () => {
+        const val = Number(aeRange.value);
+        aeValue.textContent = `${val} cm`;
+        await updateAe(val);
+      });
+
+      async function updateStatus(st) {
+        const { error } = await supabase
+          .from('alarmsystems')
+          .update({ status: st })
+          .eq('id', id);
+        if (error) return status.textContent = 'Fehler beim Update.';
+        status.textContent = `Status geändert auf: ${st}`;
+      }
+
+      async function updateAe(val) {
+        const { error } = await supabase
+          .from('alarmsystems')
+          .update({ ae_distance: val })
+          .eq('id', id);
+        if (error) return status.textContent = 'Fehler beim AE Update.';
+      }
+
+      load();
     });
-
-    disarmBtn.addEventListener('click', () => {
-      statusDiv.textContent = `Alarmanlage ${alarmId} wurde entschärft.`;
-      // Hier API-Call / Supabase Update einfügen, um Status zu speichern
-    });
-
-    aeRange.addEventListener('input', () => {
-      aeValue.textContent = `${aeRange.value} cm`;
-      // Hier API-Call / Supabase Update einfügen, um AE zu speichern
-    });
-
   </script>
-
 </body>
 </html>
