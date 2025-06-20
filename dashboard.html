@@ -5,110 +5,135 @@
   <title>Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.28.0/dist/supabase.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-    h1 { margin-bottom: 0.5em; }
-    #user-email { margin-bottom: 1.5em; font-weight: bold; }
-    .alarm-list { list-style: none; padding: 0; max-width: 400px; }
-    .alarm-item {
-      background: white;
-      margin-bottom: 10px;
-      padding: 15px;
-      border-radius: 5px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 2em;
+      background-color: #f0f0f0;
+      color: #333;
     }
+
+    h1 {
+      margin-bottom: 1em;
+    }
+
+    #systems {
+      margin-top: 1em;
+    }
+
+    .system {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 1em;
+      margin-bottom: 1em;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
     button {
-      padding: 8px 15px;
       background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 3px;
+      padding: 10px 16px;
+      margin-top: 10px;
+      border-radius: 5px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      font-size: 1em;
     }
+
     button:hover {
       background-color: #0056b3;
+    }
+
+    #status {
+      margin-top: 1em;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>Dashboard</h1>
-  <div id="user-email">Lade Benutzerdaten...</div>
 
-  <ul id="alarm-list" class="alarm-list">
-    <!-- Alarmanlagen werden hier dynamisch eingefügt -->
-  </ul>
+  <h1>Willkommen im Dashboard</h1>
+  <button id="add-alarm">Alarmanlage hinzufügen</button>
+
+  <div id="systems">
+    <!-- Hier werden die Alarmanlagen angezeigt -->
+  </div>
+
+  <div id="status">Lade Benutzerdaten...</div>
 
   <script>
-    // 1. Supabase Client initialisieren
+    // Supabase ganz oben initialisieren
     const supabase = supabase.createClient(
-      "https://rshbpsxqbabpxhdztozz.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"
+      'https://rshbpsxqbabpxhdztozz.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
     );
 
-    // 2. Benutzer laden und anzeigen
-    async function loadUser() {
-      const { data, error } = await supabase.auth.getUser();
+    const systemsDiv = document.getElementById('systems');
+    const statusDiv = document.getElementById('status');
+    const addButton = document.getElementById('add-alarm');
+
+    async function loadAlarms() {
+      const user = await supabase.auth.getUser();
+      if (!user?.data?.user) {
+        statusDiv.textContent = "Nicht eingeloggt.";
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('alarmsystems')
+        .select('*')
+        .eq('user_id', user.data.user.id);
 
       if (error) {
-        document.getElementById("user-email").textContent = "Fehler beim Laden des Users: " + error.message;
+        statusDiv.textContent = "Fehler beim Laden der Systeme.";
+        console.error(error);
         return;
       }
-      if (!data.user) {
-        document.getElementById("user-email").textContent = "Kein Benutzer angemeldet.";
-        return;
-      }
-      document.getElementById("user-email").textContent = `Angemeldet als: ${data.user.email}`;
-    }
 
-    // 3. Alarmanlagen laden (hier Beispiel-Dummy-Daten)
-    // Später: Daten aus deiner Supabase Tabelle laden
-    async function loadAlarms() {
-      // Beispiel: Dummy-Daten simulieren
-      // Ersetze hier mit echten Supabase-Abfrage:
-      /*
-      const { data, error } = await supabase
-        .from('alarms')
-        .select('*')
-        .eq('user_id', data.user.id);
-      */
-      const dummyAlarms = [
-        { id: "alarm-1", name: "Wohnung Alarm" },
-        { id: "alarm-2", name: "Garage Alarm" },
-        { id: "alarm-3", name: "Garten Alarm" },
-      ];
-
-      const list = document.getElementById('alarm-list');
-      list.innerHTML = ''; // clear
-
-      dummyAlarms.forEach(alarm => {
-        const li = document.createElement('li');
-        li.className = 'alarm-item';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = alarm.name;
-
-        const btn = document.createElement('button');
-        btn.textContent = 'Steuerung öffnen';
-        btn.onclick = () => {
-          // Weiterleitung mit Alarm-ID
-          window.location.href = `control.html?id=${encodeURIComponent(alarm.id)}`;
-        };
-
-        li.appendChild(nameSpan);
-        li.appendChild(btn);
-
-        list.appendChild(li);
+      systemsDiv.innerHTML = '';
+      data.forEach(system => {
+        const div = document.createElement('div');
+        div.className = 'system';
+        div.innerHTML = `
+          <strong>${system.name}</strong><br/>
+          Status: ${system.status}<br/>
+          AE: ${system.ae_distance} cm<br/>
+          <button onclick="location.href='control.html?id=${system.id}'">Steuern</button>
+        `;
+        systemsDiv.appendChild(div);
       });
+
+      statusDiv.textContent = "Fertig geladen.";
     }
 
-    // Ablauf
-    (async () => {
-      await loadUser();
-      await loadAlarms();
-    })();
+    addButton.addEventListener('click', async () => {
+      const user = await supabase.auth.getUser();
+      if (!user?.data?.user) {
+        alert("Du musst eingeloggt sein.");
+        return;
+      }
+
+      const { error } = await supabase.from('alarmsystems').insert([
+        {
+          name: 'Neue Alarmanlage',
+          user_id: user.data.user.id,
+          status: 'aus',
+          ae_distance: 50
+        }
+      ]);
+
+      if (error) {
+        alert("Fehler beim Hinzufügen.");
+        return;
+      }
+
+      loadAlarms();
+    });
+
+    // Initial laden
+    loadAlarms();
   </script>
+
 </body>
 </html>
