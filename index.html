@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Login</title>
+  <title>Login & Registrierung</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
@@ -43,44 +43,72 @@
       color: red;
       margin-top: 10px;
     }
+    .toggle {
+      background: none;
+      border: none;
+      color: #007bff;
+      text-decoration: underline;
+      cursor: pointer;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Login</h2>
-    <form id="login-form">
+    <h2 id="form-title">Login</h2>
+    <form id="auth-form">
       <input type="email" id="email" placeholder="E-Mail" required />
       <input type="password" id="password" placeholder="Passwort" required />
-      <button type="submit">Einloggen</button>
+      <button type="submit" id="submit-btn">Einloggen</button>
     </form>
+    <button class="toggle" id="toggle-mode">Noch keinen Account? Registrieren</button>
     <div class="msg" id="message"></div>
   </div>
 
   <script>
-    // Erst NACHDEM das Script geladen wurde
     window.addEventListener('DOMContentLoaded', () => {
       const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-
       const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-      document.getElementById('login-form').addEventListener('submit', async (e) => {
+      let isLogin = true;
+
+      const form = document.getElementById('auth-form');
+      const message = document.getElementById('message');
+      const toggle = document.getElementById('toggle-mode');
+      const title = document.getElementById('form-title');
+      const submitBtn = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        message.textContent = '';
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        const message = document.getElementById('message');
-        message.textContent = '';
 
-        const { data, error } = await sb.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) {
-          message.textContent = 'Fehler: ' + error.message;
+        if (isLogin) {
+          const { error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) {
+            message.textContent = 'Fehler: ' + error.message;
+          } else {
+            window.location.href = 'dashboard.html';
+          }
         } else {
-          window.location.href = 'dashboard.html';
+          const { error } = await sb.auth.signUp({ email, password });
+          if (error) {
+            message.textContent = 'Fehler: ' + error.message;
+          } else {
+            message.textContent = 'Bestätigungslink gesendet. Bitte E-Mail prüfen.';
+          }
         }
+      });
+
+      toggle.addEventListener('click', () => {
+        isLogin = !isLogin;
+        title.textContent = isLogin ? 'Login' : 'Registrierung';
+        submitBtn.textContent = isLogin ? 'Einloggen' : 'Registrieren';
+        toggle.textContent = isLogin ? 'Noch keinen Account? Registrieren' : 'Schon registriert? Einloggen';
+        message.textContent = '';
+        form.reset();
       });
     });
   </script>
