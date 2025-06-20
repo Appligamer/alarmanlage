@@ -2,112 +2,86 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Login / Registrierung</title>
+  <title>Login</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      margin: 0; font-family: Arial, sans-serif;
-      background: #f0f4f8;
-      display: flex; justify-content: center; align-items: center;
+      font-family: Arial, sans-serif;
+      background: #eef2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       height: 100vh;
+      margin: 0;
     }
-    .box {
-      background: white; padding: 40px; border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      width: 100%; max-width: 400px; text-align: center;
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
     }
     input, button {
-      width: 100%; padding: 12px; margin-top: 10px;
-      border-radius: 6px; border: 1px solid #ccc; font-size: 1em;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1em;
     }
     button {
-      background: #007bff; color: white; border: none; cursor: pointer;
-      margin-top: 20px; transition: background-color 0.3s ease;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
     }
-    button:hover { background: #0056b3; }
+    button:hover {
+      background: #0056b3;
+    }
     .msg {
-      margin-top: 15px; color: red; min-height: 20px;
-    }
-    h2 { margin-bottom: 20px; }
-    .switch-link {
-      margin-top: 10px; font-size: 0.9em;
-      color: #007bff; cursor: pointer; text-decoration: underline;
+      color: red;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2 id="form-title">Login</h2>
-    <form id="auth-form">
+  <div class="container">
+    <h2>Login</h2>
+    <form id="login-form">
       <input type="email" id="email" placeholder="E-Mail" required />
       <input type="password" id="password" placeholder="Passwort" required />
-      <button type="submit" id="submit-btn">Einloggen</button>
+      <button type="submit">Einloggen</button>
     </form>
     <div class="msg" id="message"></div>
-    <div class="switch-link" id="switch-auth">Noch keinen Account? Registrieren</div>
   </div>
 
   <script>
-    const supabase = supabase.createClient(
-      'https://rshbpsxqbabpxhdztozz.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
-    );
+    // Erst NACHDEM das Script geladen wurde
+    window.addEventListener('DOMContentLoaded', () => {
+      const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
 
-    const form = document.getElementById('auth-form');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const messageDiv = document.getElementById('message');
-    const switchAuth = document.getElementById('switch-auth');
-    const formTitle = document.getElementById('form-title');
-    const submitBtn = document.getElementById('submit-btn');
+      const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-    let authMode = 'login';
+      document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const message = document.getElementById('message');
+        message.textContent = '';
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      messageDiv.textContent = '';
-      const email = emailInput.value;
-      const password = passwordInput.value;
-
-      if (authMode === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          messageDiv.textContent = 'Fehler: ' + error.message;
-        } else {
-          messageDiv.style.color = 'green';
-          messageDiv.textContent = 'Erfolgreich eingeloggt!';
-          setTimeout(() => window.location.href = 'dashboard.html', 1000);
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: window.location.origin + '/dashboard.html' }
+        const { data, error } = await sb.auth.signInWithPassword({
+          email,
+          password
         });
-        if (error) {
-          messageDiv.textContent = 'Fehler: ' + error.message;
-        } else {
-          messageDiv.style.color = 'green';
-          messageDiv.textContent = 'Registrierung erfolgreich! Bitte bestätige deine E-Mail.';
-        }
-      }
-    });
 
-    switchAuth.addEventListener('click', () => {
-      if (authMode === 'login') {
-        authMode = 'signup';
-        formTitle.textContent = 'Registrierung';
-        submitBtn.textContent = 'Registrieren';
-        switchAuth.textContent = 'Bereits einen Account? Login';
-        messageDiv.textContent = '';
-        messageDiv.style.color = 'red';
-      } else {
-        authMode = 'login';
-        formTitle.textContent = 'Login';
-        submitBtn.textContent = 'Einloggen';
-        switchAuth.textContent = 'Noch keinen Account? Registrieren';
-        messageDiv.textContent = '';
-        messageDiv.style.color = 'red';
-      }
+        if (error) {
+          message.textContent = 'Fehler: ' + error.message;
+        } else {
+          window.location.href = 'dashboard.html';
+        }
+      });
     });
   </script>
 </body>
