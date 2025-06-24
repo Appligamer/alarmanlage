@@ -57,22 +57,22 @@
       aeValue.textContent = currentAe;
     }
 
-    // Status & AE von Supabase laden (oder initial anlegen)
+    // Status & AE von Supabase laden (limit 1, um mehrere Zeilen zu vermeiden)
     async function loadStatus() {
       try {
-        const { data, error } = await supabase
+        const { data: rows, error } = await supabase
           .from('anlage_status')
           .select('status, ae')
           .eq('user_id', USER_ID)
-          .maybeSingle();  // changed from .single() to .maybeSingle()
+          .limit(1);
 
         if (error) throw error;
 
-        if (data) {
-          currentStatus = data.status;
-          currentAe = data.ae;
+        if (rows.length > 0) {
+          currentStatus = rows[0].status;
+          currentAe = rows[0].ae;
         } else {
-          // Erster Eintrag
+          // Erster Eintrag anlegen
           await supabase
             .from('anlage_status')
             .insert({ user_id: USER_ID, status: false, ae: 100 });
@@ -91,14 +91,14 @@
     // Update-Logik (Update → Insert falls kein Treffer)
     async function updateAnlage(newStatus, newAe) {
       try {
-        const { data, error } = await supabase
+        const { data: updated, error: updateErr } = await supabase
           .from('anlage_status')
           .update({ status: newStatus, ae: newAe })
           .eq('user_id', USER_ID);
 
-        if (error) throw error;
+        if (updateErr) throw updateErr;
 
-        if (!data || data.length === 0) {
+        if (!updated || updated.length === 0) {
           // Insert, wenn kein Datensatz existiert
           const { error: insertErr } = await supabase
             .from('anlage_status')
@@ -107,7 +107,7 @@
         }
 
         currentStatus = newStatus;
-        currentAe = newAe;
+        currentAe     = newAe;
         render();
         showMessage('Erfolgreich gespeichert', 'success');
       } catch (err) {
