@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Alarmanlage Steuerung</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alarmanlagensteuerung</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    body { font-family: Arial, sans-serif; background: #f4f4f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
     .panel { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 360px; text-align: center; }
-    h1 { margin-bottom: 1rem; font-size: 1.5rem; }
     .status { font-size: 1.1rem; margin: 0.5rem 0; }
     .value { font-weight: bold; color: #0066cc; }
     .subvalue { font-size: 0.9rem; color: #555; }
@@ -22,108 +21,91 @@
 <body>
   <div class="panel">
     <h1>Alarmanlage Steuerung</h1>
-    <div class="status">Status: <span id="statusValue" class="value">—</span></div>
-    <div class="status">AE (Web): <span id="aeWeb" class="value">—</span> cm</div>
-    <div class="subvalue">AE (Poti): <span id="aePot" class="value">—</span> cm</div>
+    <div class="status">Status: <span id="statusValue" class="value">–</span></div>
+    <div class="status">AE (Web): <span id="aeWeb" class="value">–</span> cm</div>
+    <div class="subvalue">AE (Poti): <span id="aePot" class="value">–</span> cm</div>
     <button id="toggleBtn">Status wechseln</button>
-    <button id="increaseBtn">+10 cm Web</button>
-    <button id="decreaseBtn">−10 cm Web</button>
+    <button id="increaseBtn">+10 cm Web</button>
+    <button id="decreaseBtn">–10 cm Web</button>
     <div id="message" class="message"></div>
   </div>
-
   <script>
-    // Supabase-Config
-    const SUPABASE_URL     = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-    const USER_ID           = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
-
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+    const USER_ID = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const statusValue = document.getElementById('statusValue');
-    const aeWeb       = document.getElementById('aeWeb');
-    const aePot       = document.getElementById('aePot');
-    const toggleBtn   = document.getElementById('toggleBtn');
-    const incBtn      = document.getElementById('increaseBtn');
-    const decBtn      = document.getElementById('decreaseBtn');
-    const messageDiv  = document.getElementById('message');
+    const aeWeb = document.getElementById('aeWeb');
+    const aePot = document.getElementById('aePot');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const incBtn = document.getElementById('increaseBtn');
+    const decBtn = document.getElementById('decreaseBtn');
+    const msg = document.getElementById('message');
 
     let currentStatus = false;
-    let currentAeWeb  = 0;
-    let currentAePot  = 0;
+    let webAE = 0;
+    let potAE = 0;
 
-    function showMessage(text, type) {
-      messageDiv.textContent = text;
-      messageDiv.className = `message ${type}`;
-    }
+    function showMessage(text, cls) { msg.textContent = text; msg.className = `message ${cls}`; }
 
     function render() {
       statusValue.textContent = currentStatus ? 'AKTIV' : 'AUS';
-      aeWeb.textContent = currentAeWeb;
-      aePot.textContent = currentAePot;
+      aeWeb.textContent = webAE;
+      aePot.textContent = potAE;
     }
 
-    // Lädt Web-AE + Poti-AE und Status: Web-AE und Poti-AE getrennt
-    async function loadStatus() {
+    async function load() {
       try {
-        const { data: rows, error } = await supabase
+        const { data, error } = await supabase
           .from('anlage_status')
-          .select('status, ae, ae_poti') // ae_poti Feld muss in DB angelegt werden
+          .select('status,ae,ae_poti')
           .eq('user_id', USER_ID)
           .limit(1);
-
         if (error) throw error;
-
-        if (rows.length > 0) {
-          currentStatus = rows[0].status;
-          currentAeWeb  = rows[0].ae;
-          currentAePot  = rows[0].ae_poti;
+        if (data.length > 0) {
+          currentStatus = data[0].status;
+          webAE = data[0].ae;
+          potAE = data[0].ae_poti;
         } else {
           await supabase
             .from('anlage_status')
             .insert({ user_id: USER_ID, status: false, ae: 100, ae_poti: 100 });
-          currentStatus = false;
-          currentAeWeb  = 100;
-          currentAePot  = 100;
+          currentStatus = false; webAE = potAE = 100;
         }
-
         render();
         showMessage('', '');
-      } catch (err) {
-        console.error(err);
+      } catch(e) {
+        console.error(e);
         showMessage('Fehler beim Laden', 'error');
       }
     }
 
-    // Update Web-AE und Status (ae_poti bleibt unverändert)
-    async function updateWeb(status, ae) {
+    async function save({status = currentStatus, ae = webAE, ae_poti = potAE}) {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('anlage_status')
-          .update({ status, ae })
+          .update({ status, ae, ae_poti })
           .eq('user_id', USER_ID);
         if (error) throw error;
-        if (!data || data.length === 0) {
-          await supabase
-            .from('anlage_status')
-            .insert({ user_id: USER_ID, status, ae, ae_poti: currentAePot });
-        }
         currentStatus = status;
-        currentAeWeb  = ae;
+        webAE = ae;
+        potAE = ae_poti;
         render();
-        showMessage('Web-AE gespeichert', 'success');
-      } catch (err) {
-        console.error(err);
+        showMessage('Erfolgreich gespeichert', 'success');
+      } catch(e) {
+        console.error(e);
         showMessage('Fehler beim Speichern', 'error');
       }
     }
 
-    toggleBtn.addEventListener('click', () => updateWeb(!currentStatus, currentAeWeb));
-    incBtn.addEventListener('click',    () => updateWeb(currentStatus, Math.min(1000, currentAeWeb + 10)));
-    decBtn.addEventListener('click',    () => updateWeb(currentStatus, Math.max(0,   currentAeWeb - 10)));
+    toggleBtn.onclick = () => save({ status: !currentStatus });
+    incBtn.onclick = () => save({ ae: Math.min(webAE + 10, 1000) });
+    decBtn.onclick = () => save({ ae: Math.max(webAE - 10, 0) });
 
-    // Initial + Polling alle 5s
-    loadStatus();
-    setInterval(loadStatus, 5000);
+    // Poll alle 5s: neue Werte abrufen (inklusive Poti-Wert)
+    setInterval(load, 5000);
+    load();
   </script>
 </body>
 </html>
