@@ -51,16 +51,12 @@
     button:hover {
       background-color: #004a99;
     }
-    .error {
-      color: #cc3300;
+    .message {
       margin-top: 15px;
       font-weight: 600;
     }
-    .success {
-      color: #228833;
-      margin-top: 15px;
-      font-weight: 600;
-    }
+    .error { color: #cc3300; }
+    .success { color: #228833; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -74,33 +70,31 @@
       <button id="increaseAeBtn">+10 cm</button>
       <button id="decreaseAeBtn">-10 cm</button>
     </div>
-    <div id="message"></div>
+    <div id="message" class="message"></div>
   </div>
 
   <script>
-    // Supabase-Config – Werte anpassen
-    const SUPABASE_URL = "https://rshbpsxqbabpxhdztozz.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
-    const USER_ID = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
+    // Supabase-Config – bitte anpassen
+    const SUPABASE_URL     = "https://rshbpsxqbabpxhdztozz.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkaGhicGhicHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3Qk...";
+    const USER_ID           = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
 
-    // Client initialisieren
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // DOM-Elemente
-    const statusValue    = document.getElementById("statusValue");
-    const aeValue        = document.getElementById("aeValue");
-    const toggleBtn      = document.getElementById("toggleBtn");
-    const increaseAeBtn  = document.getElementById("increaseAeBtn");
-    const decreaseAeBtn  = document.getElementById("decreaseAeBtn");
-    const messageDiv     = document.getElementById("message");
+    // DOM
+    const statusValue   = document.getElementById("statusValue");
+    const aeValue       = document.getElementById("aeValue");
+    const toggleBtn     = document.getElementById("toggleBtn");
+    const incBtn        = document.getElementById("increaseAeBtn");
+    const decBtn        = document.getElementById("decreaseAeBtn");
+    const messageDiv    = document.getElementById("message");
 
-    // State
-    let currentStatus = false;
-    let currentAe     = 100;
+    let currentStatus = null;
+    let currentAe     = null;
 
     function showMessage(text, type) {
-      messageDiv.textContent = text;
-      messageDiv.className = type;
+      messageDiv.textContent   = text;
+      messageDiv.className     = `message ${type || ''}`;
     }
 
     function render() {
@@ -108,9 +102,8 @@
       aeValue.textContent     = currentAe;
     }
 
-    // 1) Status laden (oder initial anlegen)
-    async function ladeStatus() {
-      showMessage("", "");
+    // Lädt Status & AE und updatet UI
+    async function loadStatus() {
       try {
         const { data, error } = await supabaseClient
           .from("anlage_status")
@@ -119,62 +112,75 @@
           .single();
 
         if (error && error.code !== "PGRST116") throw error;
+
         if (data) {
-          currentStatus = data.status;
-          currentAe     = data.ae;
+          // Wenn sich remote geändert hat, übernehmen
+          if (data.status !== currentStatus || data.ae !== currentAe) {
+            currentStatus = data.status;
+            currentAe     = data.ae;
+            render();
+            showMessage("Externe Änderung übernommen", "success");
+          }
         } else {
-          // Eintrag fehlt → anlegen
+          // Kein Eintrag → initial anlegen
           await supabaseClient
             .from("anlage_status")
             .insert({ user_id: USER_ID, status: false, ae: 100 });
           currentStatus = false;
           currentAe     = 100;
+          render();
         }
-        render();
       } catch (err) {
-        showMessage("Fehler beim Laden.", "error");
+        showMessage("Fehler beim Laden", "error");
         console.error(err);
       }
     }
 
-    // 2) Update-Logik: zuerst Update, wenn keine Zeilen betroffen dann Insert
+    // Update-Logik: Update → Insert falls nötig
     async function updateAnlage(newStatus, newAe) {
-      showMessage("", "");
       try {
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
           .from("anlage_status")
           .update({ status: newStatus, ae: newAe })
           .eq("user_id", USER_ID);
 
         if (error) throw error;
 
-        if (data && data.length > 0) {
-          // Update erfolgreich
-        } else {
-          // Kein bestehender Datensatz → Insert
-          const { error: insertError } = await supabaseClient
+        if (!data || data.length === 0) {
+          // nichts geupdated → Insert
+          const { error: insertErr } = await supabaseClient
             .from("anlage_status")
             .insert({ user_id: USER_ID, status: newStatus, ae: newAe });
-          if (insertError) throw insertError;
+          if (insertErr) throw insertErr;
         }
 
         currentStatus = newStatus;
         currentAe     = newAe;
         render();
-        showMessage("Erfolgreich aktualisiert.", "success");
+        showMessage("Änderung gespeichert", "success");
       } catch (err) {
-        showMessage("Fehler beim Aktualisieren.", "error");
+        showMessage("Fehler beim Speichern", "error");
         console.error(err);
       }
     }
 
-    // Events
+    // Button-Handler
     toggleBtn.addEventListener("click",    () => updateAnlage(!currentStatus, currentAe));
-    increaseAeBtn.addEventListener("click",() => updateAnlage(currentStatus, Math.min(500, currentAe + 10)));
-    decreaseAeBtn.addEventListener("click",() => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
+    incBtn   .addEventListener("click",    () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10)));
+    decBtn   .addEventListener("click",    () => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
 
-    // Initial
-    window.addEventListener("DOMContentLoaded", ladeStatus);
+    // Initial und Polling
+    (async () => {
+      // Erste Ladung
+      currentStatus = false;
+      currentAe     = 0;
+      statusValue.textContent = "…";
+      aeValue.textContent     = "…";
+      await loadStatus();
+
+      // Alle 5 Sekunden prüfen
+      setInterval(loadStatus, 5000);
+    })();
   </script>
 </body>
 </html>
