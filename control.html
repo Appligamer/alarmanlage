@@ -6,10 +6,11 @@
   <title>Alarmanlage Steuerung</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-    .panel { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 320px; text-align: center; }
-    h1 { margin-bottom: 1.5rem; font-size: 1.5rem; }
-    .status { font-size: 1.2rem; margin: 0.5rem 0; }
+    .panel { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 360px; text-align: center; }
+    h1 { margin-bottom: 1rem; font-size: 1.5rem; }
+    .status { font-size: 1.1rem; margin: 0.5rem 0; }
     .value { font-weight: bold; color: #0066cc; }
+    .subvalue { font-size: 0.9rem; color: #555; }
     button { margin: 0.5rem 0; width: 100%; padding: 0.75rem; font-size: 1rem; color: #fff; background: #007bff; border: none; border-radius: 5px; cursor: pointer; }
     button:hover { background: #0056b3; }
     .message { margin-top: 1rem; font-weight: 600; }
@@ -22,10 +23,11 @@
   <div class="panel">
     <h1>Alarmanlage Steuerung</h1>
     <div class="status">Status: <span id="statusValue" class="value">—</span></div>
-    <div class="status">AE: <span id="aeValue" class="value">—</span> cm</div>
+    <div class="status">AE (Web): <span id="aeWeb" class="value">—</span> cm</div>
+    <div class="subvalue">AE (Poti): <span id="aePot" class="value">—</span> cm</div>
     <button id="toggleBtn">Status wechseln</button>
-    <button id="increaseBtn">+10 cm</button>
-    <button id="decreaseBtn">−10 cm</button>
+    <button id="increaseBtn">+10 cm Web</button>
+    <button id="decreaseBtn">−10 cm Web</button>
     <div id="message" class="message"></div>
   </div>
 
@@ -38,14 +40,16 @@
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusValue = document.getElementById('statusValue');
-    const aeValue     = document.getElementById('aeValue');
+    const aeWeb       = document.getElementById('aeWeb');
+    const aePot       = document.getElementById('aePot');
     const toggleBtn   = document.getElementById('toggleBtn');
     const incBtn      = document.getElementById('increaseBtn');
     const decBtn      = document.getElementById('decreaseBtn');
     const messageDiv  = document.getElementById('message');
 
     let currentStatus = false;
-    let currentAe     = 0;
+    let currentAeWeb  = 0;
+    let currentAePot  = 0;
 
     function showMessage(text, type) {
       messageDiv.textContent = text;
@@ -54,15 +58,16 @@
 
     function render() {
       statusValue.textContent = currentStatus ? 'AKTIV' : 'AUS';
-      aeValue.textContent = currentAe;
+      aeWeb.textContent = currentAeWeb;
+      aePot.textContent = currentAePot;
     }
 
-    // Status & AE von Supabase laden (limit 1, um mehrere Zeilen zu vermeiden)
+    // Lädt Web-AE + Poti-AE und Status: Web-AE und Poti-AE getrennt
     async function loadStatus() {
       try {
         const { data: rows, error } = await supabase
           .from('anlage_status')
-          .select('status, ae')
+          .select('status, ae, ae_poti') // ae_poti Feld muss in DB angelegt werden
           .eq('user_id', USER_ID)
           .limit(1);
 
@@ -70,14 +75,15 @@
 
         if (rows.length > 0) {
           currentStatus = rows[0].status;
-          currentAe = rows[0].ae;
+          currentAeWeb  = rows[0].ae;
+          currentAePot  = rows[0].ae_poti;
         } else {
-          // Erster Eintrag anlegen
           await supabase
             .from('anlage_status')
-            .insert({ user_id: USER_ID, status: false, ae: 100 });
+            .insert({ user_id: USER_ID, status: false, ae: 100, ae_poti: 100 });
           currentStatus = false;
-          currentAe = 100;
+          currentAeWeb  = 100;
+          currentAePot  = 100;
         }
 
         render();
@@ -88,40 +94,34 @@
       }
     }
 
-    // Update-Logik (Update → Insert falls kein Treffer)
-    async function updateAnlage(newStatus, newAe) {
+    // Update Web-AE und Status (ae_poti bleibt unverändert)
+    async function updateWeb(status, ae) {
       try {
-        const { data: updated, error: updateErr } = await supabase
+        const { data, error } = await supabase
           .from('anlage_status')
-          .update({ status: newStatus, ae: newAe })
+          .update({ status, ae })
           .eq('user_id', USER_ID);
-
-        if (updateErr) throw updateErr;
-
-        if (!updated || updated.length === 0) {
-          // Insert, wenn kein Datensatz existiert
-          const { error: insertErr } = await supabase
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          await supabase
             .from('anlage_status')
-            .insert({ user_id: USER_ID, status: newStatus, ae: newAe });
-          if (insertErr) throw insertErr;
+            .insert({ user_id: USER_ID, status, ae, ae_poti: currentAePot });
         }
-
-        currentStatus = newStatus;
-        currentAe     = newAe;
+        currentStatus = status;
+        currentAeWeb  = ae;
         render();
-        showMessage('Erfolgreich gespeichert', 'success');
+        showMessage('Web-AE gespeichert', 'success');
       } catch (err) {
         console.error(err);
         showMessage('Fehler beim Speichern', 'error');
       }
     }
 
-    // Button-Handler
-    toggleBtn.addEventListener('click', () => updateAnlage(!currentStatus, currentAe));
-    incBtn.addEventListener('click',    () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10)));
-    decBtn.addEventListener('click',    () => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
+    toggleBtn.addEventListener('click', () => updateWeb(!currentStatus, currentAeWeb));
+    incBtn.addEventListener('click',    () => updateWeb(currentStatus, Math.min(1000, currentAeWeb + 10)));
+    decBtn.addEventListener('click',    () => updateWeb(currentStatus, Math.max(0,   currentAeWeb - 10)));
 
-    // Start + Polling
+    // Initial + Polling alle 5s
     loadStatus();
     setInterval(loadStatus, 5000);
   </script>
