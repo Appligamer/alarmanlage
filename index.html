@@ -90,7 +90,8 @@
           if (error) {
             message.textContent = 'Fehler: ' + error.message;
           } else {
-            window.location.href = 'dashboard.html';
+            // 👇 HIER geändert: direkt zu control.html
+            window.location.href = 'control.html';
           }
         } else {
           const { error } = await sb.auth.signUp({ email, password });
