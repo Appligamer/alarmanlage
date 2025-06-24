@@ -5,185 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Alarmanlage Steuerung</title>
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f4f6f8;
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      color: #333;
-    }
-    .container {
-      background: white;
-      padding: 25px 40px;
-      border-radius: 8px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      width: 320px;
-      text-align: center;
-    }
-    h1 {
-      margin-bottom: 25px;
-      font-weight: 600;
-      color: #222;
-    }
-    .status {
-      font-size: 1.3rem;
-      margin-bottom: 15px;
-    }
-    .value {
-      font-weight: bold;
-      color: #0066cc;
-    }
-    button {
-      cursor: pointer;
-      background-color: #0066cc;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      margin: 5px 10px;
-      border-radius: 5px;
-      font-size: 1rem;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background-color: #004a99;
-    }
-    .message {
-      margin-top: 15px;
-      font-weight: 600;
-    }
+    body { font-family: Arial, sans-serif; background: #f4f6f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .panel { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 320px; text-align: center; }
+    h1 { margin-bottom: 1.5rem; font-size: 1.5rem; }
+    .status { font-size: 1.2rem; margin: 0.5rem 0; }
+    .value { font-weight: bold; color: #0066cc; }
+    button { margin: 0.5rem 0; width: 100%; padding: 0.75rem; font-size: 1rem; color: #fff; background: #007bff; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .message { margin-top: 1rem; font-weight: 600; }
     .error { color: #cc3300; }
     .success { color: #228833; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <div class="container">
+  <div class="panel">
     <h1>Alarmanlage Steuerung</h1>
-    <div class="status">Status: <span id="statusValue" class="value">Lade...</span></div>
-    <div class="status">Alarmentfernung: <span id="aeValue" class="value">Lade...</span> cm</div>
-    <div>
-      <button id="toggleBtn">Status wechseln</button>
-      <button id="increaseAeBtn">+10 cm</button>
-      <button id="decreaseAeBtn">-10 cm</button>
-    </div>
+    <div class="status">Status: <span id="statusValue" class="value">—</span></div>
+    <div class="status">AE: <span id="aeValue" class="value">—</span> cm</div>
+    <button id="toggleBtn">Status wechseln</button>
+    <button id="increaseBtn">+10 cm</button>
+    <button id="decreaseBtn">−10 cm</button>
     <div id="message" class="message"></div>
   </div>
 
   <script>
-    // Supabase-Config – bitte exakt deinen anon public Key aus dem Dashboard einsetzen, ohne BOM oder Leerzeichen
-    const SUPABASE_URL     = "https://rshbpsxqbabpxhdztozz.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
-    const USER_ID           = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
+    // Supabase-Config
+    const SUPABASE_URL     = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+    const USER_ID           = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-    // Debug: Ausgabe in Konsole, um das BOM-Problem auszuschließen
-    console.log("Supabase URL:", SUPABASE_URL);
-    console.log("Supabase Key:", SUPABASE_ANON_KEY);
-    console.log("User ID:", USER_ID);
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Supabase-Client initialisieren
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const statusValue = document.getElementById('statusValue');
+    const aeValue     = document.getElementById('aeValue');
+    const toggleBtn   = document.getElementById('toggleBtn');
+    const incBtn      = document.getElementById('increaseBtn');
+    const decBtn      = document.getElementById('decreaseBtn');
+    const messageDiv  = document.getElementById('message');
 
-    // DOM-Elemente
-    const statusValue   = document.getElementById("statusValue");
-    const aeValue       = document.getElementById("aeValue");
-    const toggleBtn     = document.getElementById("toggleBtn");
-    const incBtn        = document.getElementById("increaseAeBtn");
-    const decBtn        = document.getElementById("decreaseAeBtn");
-    const messageDiv    = document.getElementById("message");
-
-    let currentStatus = null;
-    let currentAe     = null;
+    let currentStatus = false;
+    let currentAe     = 0;
 
     function showMessage(text, type) {
       messageDiv.textContent = text;
-      messageDiv.className   = `message ${type || ''}`;
+      messageDiv.className = `message ${type}`;
     }
 
     function render() {
-      statusValue.textContent = currentStatus ? "AKTIV" : "AUS";
-      aeValue.textContent     = currentAe;
+      statusValue.textContent = currentStatus ? 'AKTIV' : 'AUS';
+      aeValue.textContent = currentAe;
     }
 
-    // Status & AE von Supabase laden (oder initial anlegen)
     async function loadStatus() {
       try {
-        const { data, error } = await supabaseClient
-          .from("anlage_status")
-          .select("status, ae")
-          .eq("user_id", USER_ID)
+        const { data, error } = await supabase
+          .from('anlage_status')
+          .select('status, ae')
+          .eq('user_id', USER_ID)
           .single();
 
-        if (error && error.code !== "PGRST116") throw error;
-
+        if (error && error.code !== 'PGRST116') throw error;
         if (data) {
-          // Übernehme Änderungen
-          if (data.status !== currentStatus || data.ae !== currentAe) {
-            currentStatus = data.status;
-            currentAe     = data.ae;
-            render();
-            showMessage("Externe Änderung übernommen", "success");
-          }
+          currentStatus = data.status;
+          currentAe = data.ae;
         } else {
-          // Eintrag fehlt → anlegen
-          await supabaseClient
-            .from("anlage_status")
+          await supabase
+            .from('anlage_status')
             .insert({ user_id: USER_ID, status: false, ae: 100 });
           currentStatus = false;
-          currentAe     = 100;
-          render();
+          currentAe = 100;
         }
+        render();
       } catch (err) {
-        showMessage("Fehler beim Laden", "error");
+        showMessage('Fehler beim Laden', 'error');
         console.error(err);
       }
     }
 
-    // Update-Logik: Update, dann Insert falls nötig
-    async function updateAnlage(newStatus, newAe) {
+    async function updateAnlage(status, ae) {
       try {
-        let { data, error } = await supabaseClient
-          .from("anlage_status")
-          .update({ status: newStatus, ae: newAe })
-          .eq("user_id", USER_ID);
+        const { data, error } = await supabase
+          .from('anlage_status')
+          .update({ status, ae })
+          .eq('user_id', USER_ID);
 
         if (error) throw error;
-
         if (!data || data.length === 0) {
-          // Kein Datensatz existiert → Insert
-          const { error: insertErr } = await supabaseClient
-            .from("anlage_status")
-            .insert({ user_id: USER_ID, status: newStatus, ae: newAe });
-          if (insertErr) throw insertErr;
+          await supabase
+            .from('anlage_status')
+            .insert({ user_id: USER_ID, status, ae });
         }
-
-        currentStatus = newStatus;
-        currentAe     = newAe;
+        currentStatus = status;
+        currentAe = ae;
         render();
-        showMessage("Änderung gespeichert", "success");
+        showMessage('Erfolgreich gespeichert', 'success');
       } catch (err) {
-        showMessage("Fehler beim Speichern", "error");
+        showMessage('Fehler beim Speichern', 'error');
         console.error(err);
       }
     }
 
-    // Button-Handler
-    toggleBtn.addEventListener("click",    () => updateAnlage(!currentStatus, currentAe));
-    incBtn   .addEventListener("click",    () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10)));
-    decBtn   .addEventListener("click",    () => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
+    toggleBtn.onclick = () => updateAnlage(!currentStatus, currentAe);
+    incBtn.onclick    = () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10));
+    decBtn.onclick    = () => updateAnlage(currentStatus, Math.max(0, currentAe - 10));
 
-    // Initiales Laden und Polling
-    window.addEventListener("DOMContentLoaded", () => {
-      currentStatus = false;
-      currentAe     = 0;
-      render();
-      loadStatus();
-      // Jede 5 Sekunden neu laden
-      setInterval(loadStatus, 5000);
-    });
+    // Start + Polling
+    loadStatus();
+    setInterval(loadStatus, 5000);
   </script>
 </body>
 </html>
