@@ -2,35 +2,102 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Control Panel</title>
+  <title>Alarmsteuerung</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9faff; margin:0; padding:0; }
+    .panel { max-width: 460px; margin: 60px auto; background: white; padding: 30px; border-radius: 10px; box-shadow:0 0 15px rgba(0,0,0,0.1); }
+    h1 { margin-top:0; }
+    .status { font-size: 1.2em; margin-bottom:20px; }
+    .ae { font-size: 1.2em; margin-bottom:20px; }
+    .controls { display: flex; justify-content: space-between; margin-bottom:20px; }
+    button { flex:1; margin:0 5px; padding:12px; font-size:1em; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer; transition:0.2s; }
+    button:hover { background:#0056b3; }
+    #logout { background:#dc3545; margin-top:10px; }
+  </style>
 </head>
 <body>
-  <h1>Steuerung</h1>
-  <p id="user-info">Lade Benutzerdaten…</p>
-  <button onclick="logout()">Abmelden</button>
+  <div class="panel">
+    <h1>Alarmsteuerung</h1>
+    <p class="status">Status: <strong id="statusText">lade…</strong></p>
+    <p class="ae">AE: <strong id="aeText">lade…</strong> cm</p>
+
+    <div class="controls">
+      <button id="toggleBtn">Status wechseln</button>
+      <button id="aeMinusBtn">−10 cm</button>
+      <button id="aePlusBtn">+10 cm</button>
+    </div>
+
+    <button id="logout">Abmelden</button>
+  </div>
 
   <script>
-    const supabaseClient = supabase.createClient(
+    const sb = supabase.createClient(
       'https://rshbpsxqbabpxhdztozz.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
     );
 
-    async function checkUser() {
-      const { data, error } = await supabaseClient.auth.getUser();
-      if (error || !data.user) {
-        window.location.href = "index.html";
-      } else {
-        document.getElementById('user-info').textContent = "Angemeldet als: " + data.user.email;
+    let userId, currentStatus, currentAe;
+
+    async function init() {
+      const { data: session } = await sb.auth.getSession();
+      if (!session?.session) { window.location.href = 'index.html'; return; }
+      userId = session.session.user.id;
+
+      const { data, error } = await sb
+        .from('anlage_status')
+        .select('status,ae')
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !data) { alert('Fehler beim Laden'); return; }
+
+      currentStatus = data.status ? 'scharf' : 'aus';
+      currentAe = data.ae;
+      updateUI();
+    }
+
+    function updateUI() {
+      const statusEl = document.getElementById('statusText');
+      statusEl.textContent = currentStatus === 'alarm' ? '⚠️ ALARM' : currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
+      statusEl.style.color = currentStatus === 'alarm' ? '#dc3545' : '#222';
+      document.getElementById('aeText').textContent = currentAe;
+    }
+
+    async function toggleStatus() {
+      // nächster Status: aus -> scharf -> aus (Alarm wird extern gesetzt)
+      const newStatus = currentStatus === 'aus' ? true : false;
+
+      const { error } = await sb
+        .from('anlage_status')
+        .update({ status: newStatus })
+        .eq('user_id', userId);
+
+      if (!error) {
+        currentStatus = newStatus ? 'scharf' : 'aus';
+        updateUI();
       }
     }
 
-    async function logout() {
-      await supabaseClient.auth.signOut();
-      window.location.href = "index.html";
+    async function changeAe(delta) {
+      let newAe = Math.min(500, Math.max(0, currentAe + delta));
+      const { error } = await sb
+        .from('anlage_status')
+        .update({ ae: newAe })
+        .eq('user_id', userId);
+
+      if (!error) {
+        currentAe = newAe;
+        updateUI();
+      }
     }
 
-    checkUser();
+    document.getElementById('toggleBtn').onclick = toggleStatus;
+    document.getElementById('aePlusBtn').onclick = () => changeAe(10);
+    document.getElementById('aeMinusBtn').onclick = () => changeAe(-10);
+    document.getElementById('logout').onclick = async () => { await sb.auth.signOut(); window.location.href='index.html'; };
+
+    init();
   </script>
 </body>
 </html>
