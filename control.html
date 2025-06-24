@@ -37,8 +37,6 @@
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-
     const statusValue = document.getElementById('statusValue');
     const aeValue     = document.getElementById('aeValue');
     const toggleBtn   = document.getElementById('toggleBtn');
@@ -59,58 +57,69 @@
       aeValue.textContent = currentAe;
     }
 
+    // Status & AE von Supabase laden (oder initial anlegen)
     async function loadStatus() {
       try {
         const { data, error } = await supabase
           .from('anlage_status')
           .select('status, ae')
           .eq('user_id', USER_ID)
-          .single();
+          .maybeSingle();  // changed from .single() to .maybeSingle()
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error) throw error;
+
         if (data) {
           currentStatus = data.status;
           currentAe = data.ae;
         } else {
+          // Erster Eintrag
           await supabase
             .from('anlage_status')
             .insert({ user_id: USER_ID, status: false, ae: 100 });
           currentStatus = false;
           currentAe = 100;
         }
+
         render();
+        showMessage('', '');
       } catch (err) {
-        showMessage('Fehler beim Laden', 'error');
         console.error(err);
+        showMessage('Fehler beim Laden', 'error');
       }
     }
 
-    async function updateAnlage(status, ae) {
+    // Update-Logik (Update → Insert falls kein Treffer)
+    async function updateAnlage(newStatus, newAe) {
       try {
         const { data, error } = await supabase
           .from('anlage_status')
-          .update({ status, ae })
+          .update({ status: newStatus, ae: newAe })
           .eq('user_id', USER_ID);
 
         if (error) throw error;
+
         if (!data || data.length === 0) {
-          await supabase
+          // Insert, wenn kein Datensatz existiert
+          const { error: insertErr } = await supabase
             .from('anlage_status')
-            .insert({ user_id: USER_ID, status, ae });
+            .insert({ user_id: USER_ID, status: newStatus, ae: newAe });
+          if (insertErr) throw insertErr;
         }
-        currentStatus = status;
-        currentAe = ae;
+
+        currentStatus = newStatus;
+        currentAe = newAe;
         render();
         showMessage('Erfolgreich gespeichert', 'success');
       } catch (err) {
-        showMessage('Fehler beim Speichern', 'error');
         console.error(err);
+        showMessage('Fehler beim Speichern', 'error');
       }
     }
 
-    toggleBtn.onclick = () => updateAnlage(!currentStatus, currentAe);
-    incBtn.onclick    = () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10));
-    decBtn.onclick    = () => updateAnlage(currentStatus, Math.max(0, currentAe - 10));
+    // Button-Handler
+    toggleBtn.addEventListener('click', () => updateAnlage(!currentStatus, currentAe));
+    incBtn.addEventListener('click',    () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10)));
+    decBtn.addEventListener('click',    () => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
 
     // Start + Polling
     loadStatus();
