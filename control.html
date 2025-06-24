@@ -78,29 +78,39 @@
   </div>
 
   <script>
-    // Supabase-Config - Werte hier anpassen
+    // Supabase-Config – Werte anpassen
     const SUPABASE_URL = "https://rshbpsxqbabpxhdztozz.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
-    const USER_ID = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";  // Ersetze durch deinen User-ID
+    const USER_ID = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
 
-    // Supabase Client initialisieren
+    // Client initialisieren
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // HTML-Elemente
-    const statusValue = document.getElementById("statusValue");
-    const aeValue = document.getElementById("aeValue");
-    const toggleBtn = document.getElementById("toggleBtn");
-    const increaseAeBtn = document.getElementById("increaseAeBtn");
-    const decreaseAeBtn = document.getElementById("decreaseAeBtn");
-    const messageDiv = document.getElementById("message");
+    // DOM-Elemente
+    const statusValue    = document.getElementById("statusValue");
+    const aeValue        = document.getElementById("aeValue");
+    const toggleBtn      = document.getElementById("toggleBtn");
+    const increaseAeBtn  = document.getElementById("increaseAeBtn");
+    const decreaseAeBtn  = document.getElementById("decreaseAeBtn");
+    const messageDiv     = document.getElementById("message");
 
-    // Aktuellen Status & AE speichern
+    // State
     let currentStatus = false;
-    let currentAe = 100;
+    let currentAe     = 100;
 
-    // Status und AE vom Server laden
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = type;
+    }
+
+    function render() {
+      statusValue.textContent = currentStatus ? "AKTIV" : "AUS";
+      aeValue.textContent     = currentAe;
+    }
+
+    // 1) Status laden (oder initial anlegen)
     async function ladeStatus() {
-      messageDiv.textContent = "";
+      showMessage("", "");
       try {
         const { data, error } = await supabaseClient
           .from("anlage_status")
@@ -108,72 +118,62 @@
           .eq("user_id", USER_ID)
           .single();
 
-        if (error) {
-          throw error;
+        if (error && error.code !== "PGRST116") throw error;
+        if (data) {
+          currentStatus = data.status;
+          currentAe     = data.ae;
+        } else {
+          // Eintrag fehlt → anlegen
+          await supabaseClient
+            .from("anlage_status")
+            .insert({ user_id: USER_ID, status: false, ae: 100 });
+          currentStatus = false;
+          currentAe     = 100;
         }
-
-        currentStatus = data.status;
-        currentAe = data.ae;
-
-        statusValue.textContent = currentStatus ? "AKTIV" : "AUS";
-        aeValue.textContent = currentAe;
-
-      } catch (error) {
-        messageDiv.textContent = "Fehler beim Laden des Status.";
-        messageDiv.className = "error";
-        console.error(error);
+        render();
+      } catch (err) {
+        showMessage("Fehler beim Laden.", "error");
+        console.error(err);
       }
     }
 
-    // Status und AE aktualisieren (updaten oder neu einfügen)
+    // 2) Update-Logik: zuerst Update, wenn keine Zeilen betroffen dann Insert
     async function updateAnlage(newStatus, newAe) {
-      messageDiv.textContent = "";
+      showMessage("", "");
       try {
-        const { error } = await supabaseClient
+        const { data, error } = await supabaseClient
           .from("anlage_status")
-          .upsert(
-            { user_id: USER_ID, status: newStatus, ae: newAe },
-            { onConflict: "user_id" }
-          );
+          .update({ status: newStatus, ae: newAe })
+          .eq("user_id", USER_ID);
 
-        if (error) {
-          throw error;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Update erfolgreich
+        } else {
+          // Kein bestehender Datensatz → Insert
+          const { error: insertError } = await supabaseClient
+            .from("anlage_status")
+            .insert({ user_id: USER_ID, status: newStatus, ae: newAe });
+          if (insertError) throw insertError;
         }
 
         currentStatus = newStatus;
-        currentAe = newAe;
-
-        statusValue.textContent = currentStatus ? "AKTIV" : "AUS";
-        aeValue.textContent = currentAe;
-
-        messageDiv.textContent = "Status erfolgreich aktualisiert.";
-        messageDiv.className = "success";
-
-      } catch (error) {
-        messageDiv.textContent = "Fehler beim Aktualisieren.";
-        messageDiv.className = "error";
-        console.error(error);
+        currentAe     = newAe;
+        render();
+        showMessage("Erfolgreich aktualisiert.", "success");
+      } catch (err) {
+        showMessage("Fehler beim Aktualisieren.", "error");
+        console.error(err);
       }
     }
 
-    // Button-Events
-    toggleBtn.addEventListener("click", async () => {
-      await updateAnlage(!currentStatus, currentAe);
-    });
+    // Events
+    toggleBtn.addEventListener("click",    () => updateAnlage(!currentStatus, currentAe));
+    increaseAeBtn.addEventListener("click",() => updateAnlage(currentStatus, Math.min(500, currentAe + 10)));
+    decreaseAeBtn.addEventListener("click",() => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
 
-    increaseAeBtn.addEventListener("click", async () => {
-      let newAe = currentAe + 10;
-      if (newAe > 500) newAe = 500; // max Grenze
-      await updateAnlage(currentStatus, newAe);
-    });
-
-    decreaseAeBtn.addEventListener("click", async () => {
-      let newAe = currentAe - 10;
-      if (newAe < 0) newAe = 0; // min Grenze
-      await updateAnlage(currentStatus, newAe);
-    });
-
-    // Initialer Status-Ladevorgang
+    // Initial
     window.addEventListener("DOMContentLoaded", ladeStatus);
   </script>
 </body>
