@@ -1,101 +1,166 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Alarmsteuerung</title>
+  <meta charset="UTF-8" />
+  <title>Alarmanlagen-Control</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9faff; margin:0; padding:0; }
-    .panel { max-width: 460px; margin: 60px auto; background: white; padding: 30px; border-radius: 10px; box-shadow:0 0 15px rgba(0,0,0,0.1); }
-    h1 { margin-top:0; }
-    .status { font-size: 1.2em; margin-bottom:20px; }
-    .ae { font-size: 1.2em; margin-bottom:20px; }
-    .controls { display: flex; justify-content: space-between; margin-bottom:20px; }
-    button { flex:1; margin:0 5px; padding:12px; font-size:1em; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer; transition:0.2s; }
-    button:hover { background:#0056b3; }
-    #logout { background:#dc3545; margin-top:10px; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      width: 350px;
+      text-align: center;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    .status {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    .ae-display {
+      margin: 15px 0;
+      font-size: 1.2em;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      font-size: 1em;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
-  <div class="panel">
-    <h1>Alarmsteuerung</h1>
-    <p class="status">Status: <strong id="statusText">lade…</strong></p>
-    <p class="ae">AE: <strong id="aeText">lade…</strong> cm</p>
+  <div class="container">
+    <h2>Alarmanlagen-Steuerung</h2>
+    <div class="status">Status: <span id="statusText">Lädt...</span></div>
 
-    <div class="controls">
-      <button id="toggleBtn">Status wechseln</button>
-      <button id="aeMinusBtn">−10 cm</button>
-      <button id="aePlusBtn">+10 cm</button>
+    <button onclick="toggleStatus()">Status wechseln</button>
+
+    <div class="ae-display">
+      Alarmentfernung: <span id="aeText">0</span> cm
     </div>
-
-    <button id="logout">Abmelden</button>
+    <input type="range" id="aeSlider" min="0" max="500" step="10" value="0" onchange="changeAe()" />
   </div>
 
   <script>
-    const sb = supabase.createClient(
-      'https://rshbpsxqbabpxhdztozz.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
-    );
+    const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+    const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-    let userId, currentStatus, currentAe;
+    let userId = null;
+    let currentStatus = 'aus';
+    let currentAe = 0;
 
     async function init() {
       const { data: session } = await sb.auth.getSession();
-      if (!session?.session) { window.location.href = 'index.html'; return; }
+      if (!session?.session) {
+        window.location.href = 'index.html';
+        return;
+      }
+
       userId = session.session.user.id;
 
       const { data, error } = await sb
         .from('anlage_status')
-        .select('status,ae')
+        .select('status, ae')
         .eq('user_id', userId)
         .single();
 
-      if (error || !data) { alert('Fehler beim Laden'); return; }
+      if (error || !data) {
+        alert('Fehler beim Laden der Daten.');
+        return;
+      }
 
-      currentStatus = data.status ? 'scharf' : 'aus';
-      currentAe = data.ae;
+      const statusRaw = data.status;
+      if (statusRaw === null || statusRaw === undefined) {
+        currentStatus = 'aus';
+      } else if (statusRaw === true) {
+        currentStatus = 'scharf';
+      } else if (statusRaw === false) {
+        currentStatus = 'aus';
+      } else if (typeof statusRaw === 'string' && statusRaw.toLowerCase() === 'alarm') {
+        currentStatus = 'alarm';
+      } else {
+        currentStatus = 'aus';
+      }
+
+      currentAe = typeof data.ae === 'number' ? data.ae : 0;
+      document.getElementById('aeSlider').value = currentAe;
       updateUI();
     }
 
     function updateUI() {
       const statusEl = document.getElementById('statusText');
-      statusEl.textContent = currentStatus === 'alarm' ? '⚠️ ALARM' : currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
-      statusEl.style.color = currentStatus === 'alarm' ? '#dc3545' : '#222';
-      document.getElementById('aeText').textContent = currentAe;
+      const aeEl = document.getElementById('aeText');
+
+      let statusText = 'Unbekannt';
+      let color = '#333';
+
+      switch (currentStatus) {
+        case 'aus':
+          statusText = 'Aus';
+          color = '#666';
+          break;
+        case 'scharf':
+          statusText = 'Scharf';
+          color = '#007bff';
+          break;
+        case 'alarm':
+          statusText = '⚠️ ALARM';
+          color = '#dc3545';
+          break;
+      }
+
+      statusEl.textContent = statusText;
+      statusEl.style.color = color;
+      aeEl.textContent = currentAe;
     }
 
     async function toggleStatus() {
-      // nächster Status: aus -> scharf -> aus (Alarm wird extern gesetzt)
-      const newStatus = currentStatus === 'aus' ? true : false;
+      currentStatus = (currentStatus === 'aus') ? 'scharf' : 'aus';
 
-      const { error } = await sb
-        .from('anlage_status')
-        .update({ status: newStatus })
+      const newValue = (currentStatus === 'scharf');
+      await sb.from('anlage_status')
+        .update({ status: newValue })
         .eq('user_id', userId);
 
-      if (!error) {
-        currentStatus = newStatus ? 'scharf' : 'aus';
-        updateUI();
-      }
+      updateUI();
     }
 
-    async function changeAe(delta) {
-      let newAe = Math.min(500, Math.max(0, currentAe + delta));
-      const { error } = await sb
-        .from('anlage_status')
-        .update({ ae: newAe })
+    async function changeAe() {
+      const aeValue = parseInt(document.getElementById('aeSlider').value);
+      currentAe = aeValue;
+
+      await sb.from('anlage_status')
+        .update({ ae: currentAe })
         .eq('user_id', userId);
 
-      if (!error) {
-        currentAe = newAe;
-        updateUI();
-      }
+      updateUI();
     }
-
-    document.getElementById('toggleBtn').onclick = toggleStatus;
-    document.getElementById('aePlusBtn').onclick = () => changeAe(10);
-    document.getElementById('aeMinusBtn').onclick = () => changeAe(-10);
-    document.getElementById('logout').onclick = async () => { await sb.auth.signOut(); window.location.href='index.html'; };
 
     init();
   </script>
