@@ -2,116 +2,93 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Control Panel</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px;
-    }
-    .panel {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
-    }
-    h2 {
-      text-align: center;
-    }
-    label, select, input, button {
-      display: block;
-      width: 100%;
-      margin-bottom: 15px;
-      font-size: 1em;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    .status-display {
-      margin-top: 20px;
-      font-weight: bold;
-      text-align: center;
-    }
-  </style>
+  <title>Control Seite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 </head>
 <body>
-  <div class="panel">
-    <h2>Alarmanlage – Steuerung</h2>
+  <h1>Alarmanlage Status</h1>
 
-    <label for="ae">Alarmentfernung (cm):</label>
-    <input type="number" id="ae" min="10" max="500" step="10">
+  <div id="login">
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Passwort" />
+    <button id="loginBtn">Login</button>
+    <div id="loginError" style="color:red;"></div>
+  </div>
 
-    <label for="status">Status ändern:</label>
-    <select id="status">
-      <option value="aus">Aus</option>
-      <option value="entschärft">Entschärft</option>
-      <option value="scharf">Scharf</option>
-      <option value="alarm">Alarm</option>
-    </select>
-
-    <button onclick="updateAnlage()">Aktualisieren</button>
-
-    <div class="status-display" id="anzeige">Lade Status...</div>
+  <div id="status" style="display:none;">
+    <p>Status: <span id="anlageStatus"></span></p>
+    <p>AE: <span id="anlageAe"></span></p>
   </div>
 
   <script>
+    // Supabase Client initialisieren
     const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-    const sb = supabase.createClient(supabaseUrl, supabaseKey);
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+    const loginBtn = document.getElementById('loginBtn');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginError = document.getElementById('loginError');
+    const statusDiv = document.getElementById('status');
+    const anlageStatusSpan = document.getElementById('anlageStatus');
+    const anlageAeSpan = document.getElementById('anlageAe');
+    const loginDiv = document.getElementById('login');
 
-    async function ladeStatus() {
-      const { data, error } = await sb
-        .from('anlage_status')
-        .select('status, ae')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        document.getElementById('anzeige').textContent = 'Fehler beim Laden.';
-        console.error(error);
+    // Login Funktion
+    loginBtn.addEventListener('click', async () => {
+      loginError.textContent = '';
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      if (!email || !password) {
+        loginError.textContent = 'Bitte Email und Passwort eingeben.';
         return;
       }
 
-      document.getElementById('status').value = data.status;
-      document.getElementById('ae').value = data.ae;
-      document.getElementById('anzeige').textContent =
-        `Status: ${data.status.charAt(0).toUpperCase() + data.status.slice(1)} | AE: ${data.ae} cm`;
-    }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        loginError.textContent = 'Login fehlgeschlagen: ' + error.message;
+        return;
+      }
+      // Login erfolgreich, Status laden
+      loginDiv.style.display = 'none';
+      statusDiv.style.display = 'block';
+      ladeStatus();
+    });
 
-    async function updateAnlage() {
-      const neuerStatus = document.getElementById('status').value;
-      const neueAE = parseInt(document.getElementById('ae').value);
+    // Status laden Funktion
+    async function ladeStatus() {
+      const user = supabase.auth.getUser();
+      const { data: userData, error: userError } = await user;
+      if (userError || !userData) {
+        console.error('Kein eingeloggter User oder Fehler', userError);
+        return;
+      }
 
-      const { error } = await sb
+      const { data, error } = await supabase
         .from('anlage_status')
-        .update({ status: neuerStatus, ae: neueAE })
-        .eq('user_id', userId);
+        .select('status, ae')
+        .eq('user_id', userData.id)
+        .single();
 
       if (error) {
-        alert('Fehler beim Aktualisieren.');
-        console.error(error);
+        console.error('Fehler beim Laden des Status:', error);
+        anlageStatusSpan.textContent = 'Fehler';
+        anlageAeSpan.textContent = 'Fehler';
       } else {
-        ladeStatus();
+        anlageStatusSpan.textContent = data.status ? 'Aktiv' : 'Inaktiv';
+        anlageAeSpan.textContent = data.ae;
       }
     }
 
-    ladeStatus();
+    // Falls User bereits eingeloggt ist, direkt Status laden
+    supabase.auth.getSession().then(({ data: sessionData }) => {
+      if (sessionData.session) {
+        loginDiv.style.display = 'none';
+        statusDiv.style.display = 'block';
+        ladeStatus();
+      }
+    });
   </script>
 </body>
 </html>
