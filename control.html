@@ -74,14 +74,20 @@
   </div>
 
   <script>
-    // Supabase-Config – bitte anpassen
+    // Supabase-Config – bitte exakt deinen anon public Key aus dem Dashboard einsetzen, ohne BOM oder Leerzeichen
     const SUPABASE_URL     = "https://rshbpsxqbabpxhdztozz.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkaGhicGhicHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3Qk...";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
     const USER_ID           = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
 
+    // Debug: Ausgabe in Konsole, um das BOM-Problem auszuschließen
+    console.log("Supabase URL:", SUPABASE_URL);
+    console.log("Supabase Key:", SUPABASE_ANON_KEY);
+    console.log("User ID:", USER_ID);
+
+    // Supabase-Client initialisieren
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // DOM
+    // DOM-Elemente
     const statusValue   = document.getElementById("statusValue");
     const aeValue       = document.getElementById("aeValue");
     const toggleBtn     = document.getElementById("toggleBtn");
@@ -93,8 +99,8 @@
     let currentAe     = null;
 
     function showMessage(text, type) {
-      messageDiv.textContent   = text;
-      messageDiv.className     = `message ${type || ''}`;
+      messageDiv.textContent = text;
+      messageDiv.className   = `message ${type || ''}`;
     }
 
     function render() {
@@ -102,7 +108,7 @@
       aeValue.textContent     = currentAe;
     }
 
-    // Lädt Status & AE und updatet UI
+    // Status & AE von Supabase laden (oder initial anlegen)
     async function loadStatus() {
       try {
         const { data, error } = await supabaseClient
@@ -114,7 +120,7 @@
         if (error && error.code !== "PGRST116") throw error;
 
         if (data) {
-          // Wenn sich remote geändert hat, übernehmen
+          // Übernehme Änderungen
           if (data.status !== currentStatus || data.ae !== currentAe) {
             currentStatus = data.status;
             currentAe     = data.ae;
@@ -122,7 +128,7 @@
             showMessage("Externe Änderung übernommen", "success");
           }
         } else {
-          // Kein Eintrag → initial anlegen
+          // Eintrag fehlt → anlegen
           await supabaseClient
             .from("anlage_status")
             .insert({ user_id: USER_ID, status: false, ae: 100 });
@@ -136,7 +142,7 @@
       }
     }
 
-    // Update-Logik: Update → Insert falls nötig
+    // Update-Logik: Update, dann Insert falls nötig
     async function updateAnlage(newStatus, newAe) {
       try {
         let { data, error } = await supabaseClient
@@ -147,7 +153,7 @@
         if (error) throw error;
 
         if (!data || data.length === 0) {
-          // nichts geupdated → Insert
+          // Kein Datensatz existiert → Insert
           const { error: insertErr } = await supabaseClient
             .from("anlage_status")
             .insert({ user_id: USER_ID, status: newStatus, ae: newAe });
@@ -169,18 +175,15 @@
     incBtn   .addEventListener("click",    () => updateAnlage(currentStatus, Math.min(1000, currentAe + 10)));
     decBtn   .addEventListener("click",    () => updateAnlage(currentStatus, Math.max(0,   currentAe - 10)));
 
-    // Initial und Polling
-    (async () => {
-      // Erste Ladung
+    // Initiales Laden und Polling
+    window.addEventListener("DOMContentLoaded", () => {
       currentStatus = false;
       currentAe     = 0;
-      statusValue.textContent = "…";
-      aeValue.textContent     = "…";
-      await loadStatus();
-
-      // Alle 5 Sekunden prüfen
+      render();
+      loadStatus();
+      // Jede 5 Sekunden neu laden
       setInterval(loadStatus, 5000);
-    })();
+    });
   </script>
 </body>
 </html>
