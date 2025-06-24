@@ -1,181 +1,149 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Alarmanlage Control</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: #333;
-    }
-    h1 {
-      margin-bottom: 1rem;
-    }
-    .container {
-      background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
-      width: 320px;
-    }
-    label {
-      display: block;
-      margin-top: 1rem;
-      font-weight: 600;
-    }
-    input[type="checkbox"] {
-      transform: scale(1.5);
-      margin-right: 0.5rem;
-      vertical-align: middle;
-    }
-    input[type="number"] {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.3rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 1rem;
-    }
-    button {
-      margin-top: 1.5rem;
-      padding: 0.75rem;
-      width: 100%;
-      background-color: #007bff;
-      border: none;
-      color: white;
-      font-weight: 700;
-      font-size: 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .status-msg {
-      margin-top: 1rem;
-      font-weight: 600;
-      text-align: center;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alarmanlage Control</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 400px;
+    margin: 30px auto;
+    background-color: #f4f7f8;
+    padding: 20px;
+    border-radius: 8px;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+  }
+  .status {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  button {
+    padding: 10px 18px;
+    font-size: 1rem;
+    margin: 5px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    background-color: #0057b7;
+    color: white;
+  }
+  button:hover {
+    background-color: #004099;
+  }
+  .error {
+    color: red;
+    margin-top: 15px;
+    text-align: center;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <h1>Alarmanlage Steuerung</h1>
-  <div class="container">
-    <label>
-      <input type="checkbox" id="status" />
-      Alarm aktiviert
-    </label>
-
-    <label for="ae">Alarmentfernung (cm)</label>
-    <input type="number" id="ae" min="10" max="1000" step="10" />
-
-    <button id="updateBtn">Status aktualisieren</button>
-
-    <div class="status-msg" id="statusMsg"></div>
+  <div class="status" id="statusText">Lade Status...</div>
+  <div style="text-align:center;">
+    <button id="toggleBtn">Alarm an/aus</button>
+    <button id="increaseBtn">+10 cm AE</button>
+    <button id="decreaseBtn">-10 cm AE</button>
   </div>
+  <div class="error" id="errorMsg"></div>
 
-  <script type="module">
-    // Supabase SDK import via CDN
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+<script>
+  // Supabase-Setup
+  const SUPABASE_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
 
-    // Deine Supabase-URL und Anon-Key hier einfügen:
-    const SUPABASE_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Benutzer-ID (ersetze mit echter User-ID)
+  const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-    // User-ID deiner eigenen User-Session - hier beispielhaft fix (muss dynamisch angepasst werden, falls Auth verwendet wird)
-    const USER_ID = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+  // HTML-Elemente
+  const statusText = document.getElementById('statusText');
+  const errorMsg = document.getElementById('errorMsg');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const increaseBtn = document.getElementById('increaseBtn');
+  const decreaseBtn = document.getElementById('decreaseBtn');
 
-    const statusCheckbox = document.getElementById('status');
-    const aeInput = document.getElementById('ae');
-    const updateBtn = document.getElementById('updateBtn');
-    const statusMsg = document.getElementById('statusMsg');
+  // Status im Speicher
+  let currentStatus = false;
+  let currentAe = 100;
 
-    async function ladeStatus() {
-      statusMsg.textContent = 'Lade Status...';
+  // Status laden
+  async function loadStatus() {
+    errorMsg.textContent = '';
+    try {
       const { data, error } = await supabase
         .from('anlage_status')
         .select('status, ae')
-        .eq('user_id', USER_ID)
+        .eq('user_id', userId)
         .single();
 
-      if (error) {
-        statusMsg.textContent = `Fehler beim Laden: ${error.message}`;
-        console.error(error);
-        return;
-      }
-
-      statusCheckbox.checked = data.status;
-      aeInput.value = data.ae;
-      statusMsg.textContent = 'Status geladen.';
-    }
-
-    async function updateAnlage() {
-      const neuerStatus = statusCheckbox.checked;
-      const neueAE = parseInt(aeInput.value, 10);
-
-      if (isNaN(neueAE) || neueAE < 10 || neueAE > 1000) {
-        statusMsg.textContent = 'Ungültiger Wert für Alarmentfernung (10–1000 cm)';
-        return;
-      }
-
-      statusMsg.textContent = 'Aktualisiere Status...';
-
-      // Prüfen, ob Eintrag existiert, dann UPDATE, sonst INSERT
-      const { data: exists, error: checkError } = await supabase
-        .from('anlage_status')
-        .select('id')
-        .eq('user_id', USER_ID)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116: Kein Eintrag gefunden, normal für Insert
-        statusMsg.textContent = `Fehler: ${checkError.message}`;
-        console.error(checkError);
-        return;
-      }
-
-      if (exists) {
-        // Update
-        const { error: updateError } = await supabase
-          .from('anlage_status')
-          .update({ status: neuerStatus, ae: neueAE })
-          .eq('user_id', USER_ID);
-
-        if (updateError) {
-          statusMsg.textContent = `Update Fehler: ${updateError.message}`;
-          console.error(updateError);
-          return;
-        }
-        statusMsg.textContent = 'Status erfolgreich aktualisiert.';
+      if (error) throw error;
+      if (data) {
+        currentStatus = data.status;
+        currentAe = data.ae;
+        updateStatusText();
       } else {
-        // Insert
-        const { error: insertError } = await supabase
-          .from('anlage_status')
-          .insert({ user_id: USER_ID, status: neuerStatus, ae: neueAE });
-
-        if (insertError) {
-          statusMsg.textContent = `Insert Fehler: ${insertError.message}`;
-          console.error(insertError);
-          return;
-        }
-        statusMsg.textContent = 'Status erfolgreich hinzugefügt.';
+        // Falls kein Eintrag, erstelle einen
+        await supabase.from('anlage_status').insert([{ user_id: userId, status: false, ae: 100 }]);
+        currentStatus = false;
+        currentAe = 100;
+        updateStatusText();
       }
+    } catch (err) {
+      errorMsg.textContent = 'Fehler beim Laden des Status: ' + err.message;
     }
+  }
 
-    updateBtn.addEventListener('click', updateAnlage);
+  // Statusanzeige aktualisieren
+  function updateStatusText() {
+    statusText.textContent = `Alarm: ${currentStatus ? 'AKTIV' : 'AUS'} | AE: ${currentAe} cm`;
+  }
 
-    // Status beim Laden der Seite abrufen
-    ladeStatus();
-  </script>
+  // Status updaten (Status oder AE)
+  async function updateStatus(newStatus, newAe) {
+    errorMsg.textContent = '';
+    try {
+      const { error } = await supabase
+        .from('anlage_status')
+        .update({ status: newStatus, ae: newAe })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      currentStatus = newStatus;
+      currentAe = newAe;
+      updateStatusText();
+    } catch (err) {
+      errorMsg.textContent = 'Fehler beim Aktualisieren: ' + err.message;
+    }
+  }
+
+  // Event-Handler
+  toggleBtn.onclick = () => {
+    updateStatus(!currentStatus, currentAe);
+  };
+
+  increaseBtn.onclick = () => {
+    let newAe = currentAe + 10;
+    if (newAe > 500) newAe = 500;
+    updateStatus(currentStatus, newAe);
+  };
+
+  decreaseBtn.onclick = () => {
+    let newAe = currentAe - 10;
+    if (newAe < 0) newAe = 0;
+    updateStatus(currentStatus, newAe);
+  };
+
+  // Initial
+  loadStatus();
+</script>
 </body>
 </html>
