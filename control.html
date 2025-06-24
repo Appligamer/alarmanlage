@@ -1,138 +1,120 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Alarmanlage Control</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alarmanlage Steuerung</title>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+    
+    <style>
+        /* Sauberes, modernes Design */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        header {
+            background-color: #004aad;
+            color: white;
+            width: 100%;
+            padding: 1.5rem 0;
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+
+        main {
+            margin-top: 3rem;
+            background: white;
+            padding: 2rem 3rem;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 450px;
+        }
+
+        button {
+            background-color: #004aad;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-bottom: 1.5rem;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #003680;
+        }
+
+        #statusOutput {
+            font-size: 1.2rem;
+            padding: 1rem;
+            background: #e0e7ff;
+            border-radius: 6px;
+            text-align: center;
+            color: #1a237e;
+        }
+
+        .error {
+            color: #b00020;
+            background: #fddede;
+            border-radius: 6px;
+            padding: 1rem;
+        }
+    </style>
 </head>
 <body>
 
-<h1>Alarmanlage Control</h1>
+<header>
+    Alarmanlage Steuerung
+</header>
 
-<div id="status-container">
-  <p>Status der Alarmanlage: <span id="status-text">Lade...</span></p>
-  <button id="toggle-status-btn">Status ändern</button>
-</div>
-
-<div id="ae-container">
-  <p>Alarmentfernung (AE): <span id="ae-value">Lade...</span> cm</p>
-  <button id="ae-decrease-btn">- 10 cm</button>
-  <button id="ae-increase-btn">+ 10 cm</button>
-</div>
-
-<button id="logout-btn">Logout</button>
+<main>
+    <button id="loadStatus">Status laden</button>
+    <div id="statusOutput">Bitte Status laden</div>
+</main>
 
 <script>
-  const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'; // Hier deinen echten anon key einfügen
+    // Supabase initialisieren
+    const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+    const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-  // Supabase Client korrekt initialisieren (nicht supabase überschreiben)
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    // Beispiel User ID, sollte dynamisch geladen werden z.B. vom Login
+    const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-  const statusText = document.getElementById('status-text');
-  const toggleStatusBtn = document.getElementById('toggle-status-btn');
-  const aeValue = document.getElementById('ae-value');
-  const aeDecreaseBtn = document.getElementById('ae-decrease-btn');
-  const aeIncreaseBtn = document.getElementById('ae-increase-btn');
-  const logoutBtn = document.getElementById('logout-btn');
+    async function ladeStatus() {
+        const statusOutput = document.getElementById('statusOutput');
+        statusOutput.textContent = 'Lade Status...';
 
-  let currentStatus = false;
-  let currentAe = 100;
-  let userId = null;
+        const { data, error } = await supabase
+            .from('anlage_status')
+            .select('status, ae')
+            .eq('user_id', userId)
+            .single();
 
-  async function checkUser() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-      alert('Nicht eingeloggt. Bitte zuerst anmelden.');
-      window.location.href = 'login.html'; // ggf. anpassen
-      return false;
-    }
-    userId = session.user.id;
-    return true;
-  }
+        if (error) {
+            statusOutput.innerHTML = `<div class="error">Fehler beim Laden: ${error.message}</div>`;
+            return;
+        }
 
-  async function ladeStatus() {
-    if (!userId) return;
-    const { data, error } = await supabaseClient
-      .from('anlage_status')
-      .select('status, ae')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      console.error('Fehler beim Laden:', error);
-      statusText.textContent = 'Fehler beim Laden';
-      aeValue.textContent = '-';
-      return;
+        statusOutput.textContent = `Status: ${data.status ? 'Aktiv' : 'Inaktiv'} | AE: ${data.ae} cm`;
     }
 
-    if (!data) {
-      // Falls noch kein Datensatz existiert, Standardwerte anzeigen
-      currentStatus = false;
-      currentAe = 100;
-      statusText.textContent = 'Aus';
-      aeValue.textContent = currentAe;
-      return;
-    }
-
-    currentStatus = data.status;
-    currentAe = data.ae;
-
-    statusText.textContent = currentStatus ? 'Ein' : 'Aus';
-    aeValue.textContent = currentAe;
-  }
-
-  async function updateAnlage() {
-    if (!userId) return;
-    const { error } = await supabaseClient
-      .from('anlage_status')
-      .upsert({
-        user_id: userId,
-        status: currentStatus,
-        ae: currentAe
-      }, { onConflict: 'user_id' });
-
-    if (error) {
-      console.error('Fehler beim Aktualisieren:', error);
-      alert('Fehler beim Speichern.');
-      return;
-    }
-    statusText.textContent = currentStatus ? 'Ein' : 'Aus';
-    aeValue.textContent = currentAe;
-  }
-
-  toggleStatusBtn.addEventListener('click', async () => {
-    currentStatus = !currentStatus;
-    await updateAnlage();
-  });
-
-  aeDecreaseBtn.addEventListener('click', async () => {
-    if (currentAe > 10) {
-      currentAe -= 10;
-      await updateAnlage();
-    }
-  });
-
-  aeIncreaseBtn.addEventListener('click', async () => {
-    if (currentAe < 1000) {  // Limit kannst du anpassen
-      currentAe += 10;
-      await updateAnlage();
-    }
-  });
-
-  logoutBtn.addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    window.location.href = 'login.html'; // ggf. anpassen
-  });
-
-  // Seite initial laden
-  (async () => {
-    const loggedIn = await checkUser();
-    if (loggedIn) {
-      await ladeStatus();
-    }
-  })();
+    document.getElementById('loadStatus').addEventListener('click', ladeStatus);
 </script>
 
 </body>
