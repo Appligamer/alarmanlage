@@ -1,20 +1,63 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Alarmanlagensteuerung</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-    .panel { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 360px; text-align: center; }
-    .status { font-size: 1.1rem; margin: 0.5rem 0; }
-    .value { font-weight: bold; color: #0066cc; }
-    .subvalue { font-size: 0.9rem; color: #555; }
-    button { margin: 0.5rem 0; width: 100%; padding: 0.75rem; font-size: 1rem; color: #fff; background: #007bff; border: none; border-radius: 5px; cursor: pointer; }
-    button:hover { background: #0056b3; }
-    .message { margin-top: 1rem; font-weight: 600; }
-    .error { color: #cc3300; }
-    .success { color: #228833; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .panel {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      width: 360px;
+      text-align: center;
+    }
+    .status {
+      font-size: 1.1rem;
+      margin: 0.5rem 0;
+    }
+    .value {
+      font-weight: bold;
+      color: #0066cc;
+    }
+    .subvalue {
+      font-size: 0.9rem;
+      color: #555;
+    }
+    button {
+      margin: 0.5rem 0;
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      color: #fff;
+      background: #007bff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .message {
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+    .error {
+      color: #cc3300;
+    }
+    .success {
+      color: #228833;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -31,8 +74,10 @@
   </div>
   <script>
     const SUPABASE_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+    const SUPABASE_KEY =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
     const USER_ID = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const statusValue = document.getElementById('statusValue');
@@ -44,10 +89,13 @@
     const msg = document.getElementById('message');
 
     let currentStatus = false;
-    let webAE = 0;
-    let potAE = 0;
+    let webAE = 100;
+    let potAE = 100;
 
-    function showMessage(text, cls) { msg.textContent = text; msg.className = `message ${cls}`; }
+    function showMessage(text, cls) {
+      msg.textContent = text;
+      msg.className = `message ${cls}`;
+    }
 
     function render() {
       statusValue.textContent = currentStatus ? 'AKTIV' : 'AUS';
@@ -70,18 +118,24 @@
         } else {
           await supabase
             .from('anlage_status')
-            .insert({ user_id: USER_ID, status: false, ae: 100, ae_poti: 100 });
-          currentStatus = false; webAE = potAE = 100;
+            .insert({
+              user_id: USER_ID,
+              status: false,
+              ae: 100,
+              ae_poti: 100,
+            });
+          currentStatus = false;
+          webAE = potAE = 100;
         }
         render();
         showMessage('', '');
-      } catch(e) {
+      } catch (e) {
         console.error(e);
         showMessage('Fehler beim Laden', 'error');
       }
     }
 
-    async function save({status = currentStatus, ae = webAE, ae_poti = potAE}) {
+    async function save({ status = currentStatus, ae = webAE, ae_poti = potAE }) {
       try {
         const { error } = await supabase
           .from('anlage_status')
@@ -93,7 +147,7 @@
         potAE = ae_poti;
         render();
         showMessage('Erfolgreich gespeichert', 'success');
-      } catch(e) {
+      } catch (e) {
         console.error(e);
         showMessage('Fehler beim Speichern', 'error');
       }
@@ -103,7 +157,6 @@
     incBtn.onclick = () => save({ ae: Math.min(webAE + 10, 1000) });
     decBtn.onclick = () => save({ ae: Math.max(webAE - 10, 0) });
 
-    // Poll alle 5s: neue Werte abrufen (inklusive Poti-Wert)
     setInterval(load, 5000);
     load();
   </script>
