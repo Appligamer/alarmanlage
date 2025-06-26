@@ -1,158 +1,54 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Alarmanlagen-Steuerung</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alarmanlage Steuerung</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #1a1a1a;
-      color: #ffffff;
-      text-align: center;
-      padding: 40px;
+      max-width: 400px;
+      margin: 20px auto;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 8px;
     }
-
-    h1 {
-      margin-bottom: 20px;
+    label {
+      display: block;
+      margin-top: 15px;
     }
-
-    .status {
-      margin: 20px 0;
-      font-size: 1.2em;
+    select, input[type=number] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      font-size: 16px;
     }
-
-    .buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      align-items: center;
-      margin: 30px 0;
-    }
-
-    .buttons button {
-      background-color: #333;
+    button {
+      margin-top: 20px;
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+      background-color: #2a7ae2;
       color: white;
       border: none;
-      padding: 12px 25px;
-      font-size: 1em;
-      cursor: pointer;
-      border-radius: 5px;
-      transition: background-color 0.3s ease;
+      border-radius: 4px;
     }
-
-    .buttons button:hover {
-      background-color: #555;
+    button:disabled {
+      background-color: #888;
     }
-
-    #alarm-banner {
+    #statusMessage {
+      margin-top: 20px;
+      min-height: 24px;
+    }
+    #alarmMessage {
+      display: none;
       background-color: red;
       color: white;
       font-weight: bold;
-      padding: 15px;
-      display: none;
-      margin-bottom: 30px;
-      font-size: 1.3em;
-      border-radius: 8px;
-    }
-
-    .ae-controls {
-      margin-top: 20px;
-    }
-
-    .ae-controls input {
-      width: 60px;
+      font-size: 24px;
       text-align: center;
-      font-size: 1em;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 4px;
     }
-
-    .ae-controls button {
-      margin-left: 10px;
-    }
-  </style>
-</head>
-<body>
-
-  <h1>Alarmanlagen-Steuerung</h1>
-
-  <div id="alarm-banner">ALARM WURDE AUSGELÖST!</div>
-
-  <div class="status">
-    <p><strong>Status:</strong> <span id="status-text">Lade...</span></p>
-    <p><strong>Grenzwert (Web):</strong> <span id="ae-value">-</span> cm</p>
-  </div>
-
-  <div class="buttons">
-    <button onclick="sendeStatus('AUS')">Ausschalten</button>
-    <button onclick="sendeStatus('ENTSCHAERFT')">Entschärfen</button>
-    <button onclick="sendeStatus('SCHARF')">Scharf stellen</button>
-  </div>
-
-  <div class="ae-controls">
-    <p><strong>Grenzwert ändern (Webmodus):</strong></p>
-    <input type="number" id="ae-input" min="5" max="200" />
-    <button onclick="setzeAE()">Übernehmen</button>
-  </div>
-
-  <script>
-    const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/alarmanlage";
-    const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
-
-    async function ladeStatus() {
-      const response = await fetch(supabaseUrl + "?select=status,ae,alarm&order=id.desc&limit=1", {
-        headers: { apikey: apiKey }
-      });
-      const daten = await response.json();
-      if (daten.length > 0) {
-        const info = daten[0];
-        document.getElementById("status-text").textContent = info.status;
-        document.getElementById("ae-value").textContent = info.ae;
-        document.getElementById("ae-input").value = info.ae;
-
-        if (info.alarm) {
-          zeigeAlarmBanner();
-        }
-      }
-    }
-
-    async function sendeStatus(neuerStatus) {
-      const aeWert = parseInt(document.getElementById("ae-input").value) || 50;
-      await fetch(supabaseUrl, {
-        method: "POST",
-        headers: {
-          apikey: apiKey,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status: neuerStatus, ae: aeWert })
-      });
-      ladeStatus();
-    }
-
-    async function setzeAE() {
-      const neuerAE = parseInt(document.getElementById("ae-input").value) || 50;
-      const aktuelleStatus = document.getElementById("status-text").textContent;
-
-      await fetch(supabaseUrl, {
-        method: "POST",
-        headers: {
-          apikey: apiKey,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ ae: neuerAE, status: aktuelleStatus })
-      });
-      ladeStatus();
-    }
-
-    function zeigeAlarmBanner() {
-      const banner = document.getElementById("alarm-banner");
-      banner.style.display = "block";
-
-      setTimeout(() => {
-        banner.style.display = "none";
-      }, 30000); // Banner nach 30 Sek. ausblenden
-    }
-
-    setInterval(ladeStatus, 3000);
-    ladeStatus();
-  </script>
-</body>
-</html>
+ 
