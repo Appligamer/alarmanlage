@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Deine Supabase-Daten
+// Supabase-Daten
 const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
 
@@ -13,7 +13,6 @@ async function fetchUserId() {
     .from('anlage_status')
     .select('user_id')
     .limit(1)
-
   if (error) {
     console.error('❌ Fehler beim Abrufen:', error)
   } else {
