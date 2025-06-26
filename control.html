@@ -1,161 +1,140 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Alarmanlage Steuerung</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 1rem;
-    background: #f0f0f0;
-    color: #222;
-  }
-  #alarmBanner {
-    display: none;
-    background-color: red;
-    color: white;
-    padding: 1rem;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-  #statusContainer {
-    margin-bottom: 1rem;
-  }
-  label {
-    display: inline-block;
-    width: 120px;
-  }
-  select, input[type=number] {
-    width: 100px;
-    margin-right: 1rem;
-  }
-  button {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  #info {
-    margin-top: 1rem;
-    font-size: 0.9rem;
-    color: #555;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alarmanlage Steuerung</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 2rem auto; background:#fafafa; padding:1rem; border-radius:8px; }
+    #alarmBanner { display:none; background:crimson; color:white; padding:1rem; font-size:1.25rem; text-align:center; margin-bottom:1rem; border-radius:4px; }
+    label { display:block; margin-top:1rem; font-weight:bold; }
+    select,input { width:100%; padding:0.5rem; margin-top:0.5rem; font-size:1rem; }
+    button { margin-top:1.5rem; width:100%; padding:0.75rem; font-size:1rem; background:#2a7ae2; color:white; border:none; border-radius:4px; cursor:pointer; }
+    #statusText { margin-top:1rem; color:#555; }
+  </style>
 </head>
 <body>
 
-<h1>Alarmanlage Steuerung</h1>
+  <h1>Alarmanlage Steuerung</h1>
+  <div id="alarmBanner">⚠️ ALARM AKTIV!</div>
 
-<div id="alarmBanner">ALARM AKTIV!</div>
-
-<div id="statusContainer">
-  <label for="statusSelect">Status:</label>
+  <label for="statusSelect">Status</label>
   <select id="statusSelect">
     <option value="0">AUS</option>
     <option value="1">ENTSCHÄRFT</option>
     <option value="2">SCHARF</option>
   </select>
-</div>
 
-<div id="aeContainer">
-  <label for="aeInput">AE Wert:</label>
-  <input type="number" id="aeInput" min="0" max="400" />
-</div>
+  <label for="aeInput">Alarmentfernung (AE)</label>
+  <input id="aeInput" type="number" min="0" max="400" />
 
-<button id="updateButton">Status aktualisieren</button>
+  <button id="saveBtn">Änderungen speichern</button>
+  <div id="statusText">Lade Daten…</div>
 
-<div id="info"></div>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // 1) Supabase initialisieren
+    const SUPA_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…'; // <–– ersetze komplett
+    const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
+    const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  // Supabase Einstellungen
-  const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    // 2) UI-Elemente
+    const alarmBanner = document.getElementById('alarmBanner');
+    const statusSelect = document.getElementById('statusSelect');
+    const aeInput     = document.getElementById('aeInput');
+    const saveBtn     = document.getElementById('saveBtn');
+    const statusText  = document.getElementById('statusText');
+    const alarmSound  = new Audio('alarm-sound.mp3'); // optional
 
-  // Nutzer-ID oder eindeutiger Filter, damit wir nur den richtigen Datensatz lesen und schreiben
-  const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+    let lastAlarm = false;
 
-  // HTML Elemente
-  const statusSelect = document.getElementById('statusSelect');
-  const aeInput = document.getElementById('aeInput');
-  const updateButton = document.getElementById('updateButton');
-  const alarmBanner = document.getElementById('alarmBanner');
-  const info = document.getElementById('info');
+    // 3) Daten laden
+    async function loadData() {
+      try {
+        const { data, error } = await supabase
+          .from('anlage_status')
+          .select('status,ae,alarm')
+          .eq('user_id', userId)
+          .single();
+        if (error) throw error;
 
-  // Status-Text Array (muss zu ESP32 passen)
-  const statusText = ["AUS", "ENTSCHÄRFT", "SCHARF"];
+        statusSelect.value = data.status;
+        aeInput.value     = data.ae;
+        updateAlarmUI(data.alarm);
 
-  // Daten laden
-  async function loadStatus() {
-    const { data, error } = await supabase
-      .from('anlage_status')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      info.textContent = 'Fehler beim Laden der Daten: ' + error.message;
-      return;
-    }
-
-    statusSelect.value = data.status.toString();
-    aeInput.value = data.ae;
-    alarmBanner.style.display = data.alarm ? 'block' : 'none';
-    info.textContent = 'Letztes Update: ' + new Date().toLocaleTimeString();
-  }
-
-  // Status aktualisieren (PATCH)
-  async function updateStatus() {
-    const status = parseInt(statusSelect.value);
-    const ae = parseInt(aeInput.value);
-
-    if (isNaN(ae) || ae < 0 || ae > 400) {
-      alert('Bitte einen gültigen AE Wert zwischen 0 und 400 eingeben.');
-      return;
-    }
-
-    const payload = {
-      status: status,
-      ae: ae
-    };
-
-    const { error } = await supabase
-      .from('anlage_status')
-      .update(payload)
-      .eq('user_id', userId);
-
-    if (error) {
-      info.textContent = 'Fehler beim Aktualisieren: ' + error.message;
-    } else {
-      info.textContent = 'Status erfolgreich aktualisiert: ' + new Date().toLocaleTimeString();
-      await loadStatus();
-    }
-  }
-
-  // Live-Update mit Supabase Realtime (wenn in DB unterstützt)
-  supabase
-    .channel('public:anlage_status')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'anlage_status', filter: `user_id=eq.${userId}` },
-      payload => {
-        console.log('Realtime update:', payload);
-        loadStatus();
+        statusText.textContent = 
+          `Status: ${['AUS','ENTSCHÄRFT','SCHARF'][data.status]} | AE: ${data.ae}`;
+      } catch (err) {
+        statusText.textContent = 'Fehler: ' + err.message;
       }
-    )
-    .subscribe();
+    }
 
-  // Button Event
-  updateButton.addEventListener('click', updateStatus);
+    // 4) Status speichern
+    async function saveData() {
+      saveBtn.disabled = true;
+      statusText.textContent = 'Speichere…';
+      try {
+        const payload = {
+          status: parseInt(statusSelect.value),
+          ae:     parseInt(aeInput.value)
+        };
+        const { error } = await supabase
+          .from('anlage_status')
+          .update(payload)
+          .eq('user_id', userId);
+        if (error) throw error;
+        statusText.textContent = 'Gespeichert: ' + new Date().toLocaleTimeString();
+      } catch (err) {
+        statusText.textContent = 'Fehler: ' + err.message;
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
 
-  // Initialer Status-Load
-  loadStatus();
+    // 5) UI bei Alarm
+    function updateAlarmUI(alarmActive) {
+      if (alarmActive) {
+        alarmBanner.style.display = 'block';
+        if (!lastAlarm) {
+          if (Notification.permission==='granted') new Notification('Alarm!', { body:'Alarmanlage ausgelöst!' });
+          alarmSound.play().catch(()=>{});
+        }
+      } else {
+        alarmBanner.style.display = 'none';
+      }
+      lastAlarm = alarmActive;
+    }
 
-  // Optional: Alle 5 Sekunden automatisch Status nachladen
-  setInterval(loadStatus, 5000);
-</script>
+    // 6) Realtime abonnieren
+    supabase
+      .channel('public:anlage_status')
+      .on('postgres_changes',
+        { event:'UPDATE', schema:'public', table:'anlage_status', filter:`user_id=eq.${userId}` },
+        payload => {
+          const d = payload.new;
+          statusSelect.value = d.status;
+          aeInput.value      = d.ae;
+          updateAlarmUI(d.alarm);
+          statusText.textContent = 'Realtime: ' +
+            `Status ${['AUS','ENT','SCH'][d.status]}, AE ${d.ae}`;
+        }
+      )
+      .subscribe();
+
+    // 7) Periodisches Nachladen als Fallback
+    setInterval(loadData, 5000);
+
+    // 8) Notification-Permission
+    if (Notification.permission==='default') Notification.requestPermission();
+
+    // 9) Event-Handler
+    saveBtn.addEventListener('click', saveData);
+
+    // 10) Initial
+    loadData();
+  </script>
 
 </body>
 </html>
