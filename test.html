@@ -13,6 +13,7 @@ async function fetchUserId() {
     .from('anlage_status')
     .select('user_id')
     .limit(1)
+
   if (error) {
     console.error('❌ Fehler beim Abrufen:', error)
   } else {
