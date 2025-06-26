@@ -1,110 +1,59 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <title>Alarmanlage Control</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    body { font-family: Arial, sans-serif; background:#f4f6f8; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
-    .panel { background:#fff; padding:2rem; border-radius:8px; box-shadow:0 0 15px rgba(0,0,0,0.1); width:320px; text-align:center; }
-    h1 { margin-bottom:1rem; }
-    .status, .ae, .alarm { margin:0.5rem 0; font-size:1.1rem; }
-    .value { font-weight:bold; color:#0066cc; }
-    button, input { width:100%; padding:0.75rem; margin:0.5rem 0; font-size:1rem; }
-    button { background:#007bff; color:#fff; border:none; border-radius:5px; cursor:pointer; }
-    button:hover { background:#0056b3; }
-    input { border:1px solid #ccc; border-radius:5px; }
-    .message { margin-top:1rem; font-weight:600; }
-    .error { color:#cc3300; }
-    .success { color:#228833; }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-  <div class="panel">
-    <h1>Alarmanlagen-Steuerung</h1>
-    <div class="status">Status: <span id="status" class="value">–</span></div>
-    <div class="ae">AE: <span id="ae" class="value">–</span> cm</div>
-    <div class="alarm">Alarm: <span id="alarm" class="value">–</span></div>
-    <button id="toggle">Status wechseln</button>
-    <input type="number" id="aeInput" placeholder="Neue AE (0–500)" min="0" max="500">
-    <button id="setAe">AE setzen</button>
-    <div id="msg" class="message"></div>
-  </div>
-  <script>
-    // ↘ HIER TESTWEISE den SERVICE-ROLE-KEY (niemals öffentlich einsetzen!)
-    const SUPA_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDM2NjIwOCwiZXhwIjoyMDY1OTQyMjA4fQ.ZbS6YPB5X5Jiph9IpKovoeeQGalzRcR03_eoRgRG01E';
-    const USER_ID  = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+import { createClient } from '@supabase/supabase-js';
 
-    const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+// Supabase-Konfiguration
+const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const statusEl = document.getElementById('status');
-    const aeEl     = document.getElementById('ae');
-    const alarmEl  = document.getElementById('alarm');
-    const toggle   = document.getElementById('toggle');
-    const aeInput  = document.getElementById('aeInput');
-    const setAe    = document.getElementById('setAe');
-    const msg      = document.getElementById('msg');
+// Benutzer-ID
+const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-    let record = null;
+// Status und AE-Wert abrufen
+async function fetchStatus() {
+  const { data, error } = await supabase
+    .from('anlage_status')
+    .select('status, ae')
+    .eq('user_id', userId)
+    .single();
 
-    function showMsg(text, cls='') {
-      msg.textContent = text;
-      msg.className = cls ? `message ${cls}` : 'message';
-    }
+  if (error) {
+    console.error('Fehler beim Abrufen:', error);
+    return;
+  }
 
-    async function load() {
-      try {
-        const { data, error } = await sb
-          .from('anlage_status')
-          .select('*')
-          .eq('user_id', USER_ID)
-          .single();
-        if (error) throw error;
-        record = data;
-        statusEl.textContent = record.status;
-        aeEl.textContent     = record.ae;
-        alarmEl.textContent  = record.status === 'alarm' ? 'JA' : 'NEIN';
-        aeInput.value        = record.ae;
-        showMsg('', '');
-      } catch(e) {
-        showMsg('Lade-Fehler!','error');
-        console.error(e);
-      }
-    }
+  console.log('Status:', data.status);
+  console.log('AE:', data.ae);
 
-    async function update(fields) {
-      try {
-        const { error } = await sb
-          .from('anlage_status')
-          .update(fields)
-          .eq('user_id', USER_ID);
-        if (error) throw error;
-        showMsg('Gespeichert','success');
-        await load();
-      } catch(e) {
-        showMsg('Speicher-Fehler','error');
-        console.error(e);
-      }
-    }
+  // UI aktualisieren
+  document.getElementById('statusAnzeige').innerText = `Status: ${data.status}`;
+  document.getElementById('aeAnzeige').innerText = `AE-Wert: ${data.ae}`;
+  document.getElementById('aeInput').value = data.ae;
+  document.getElementById('statusSelect').value = data.status;
+}
 
-    toggle.onclick = () => {
-      const next = record.status === 'aus' ? 'entschaerft'
-                 : record.status === 'entschaerft' ? 'scharf'
-                 : record.status === 'scharf' ? 'aus'
-                 : 'aus';
-      update({ status: next });
-    };
+// Status und AE-Wert aktualisieren
+async function updateStatus() {
+  const newStatus = document.getElementById('statusSelect').value;
+  const newAe = parseInt(document.getElementById('aeInput').value, 10);
 
-    setAe.onclick = () => {
-      const v = parseInt(aeInput.value);
-      if (isNaN(v) || v<0 || v>500) { showMsg('AE 0–500','error'); return; }
-      update({ ae: v });
-    };
+  const { error } = await supabase
+    .from('anlage_status')
+    .update({ status: newStatus, ae: newAe })
+    .eq('user_id', userId);
 
-    setInterval(load, 5000);
-    load();
-  </script>
-</body>
-</html>
+  if (error) {
+    console.error('Fehler beim Aktualisieren:', error);
+  } else {
+    console.log('Update erfolgreich');
+    fetchStatus(); // Direkt neu laden
+  }
+}
+
+// Automatisch alle 5 Sekunden aktualisieren
+setInterval(fetchStatus, 5000);
+
+// Erstes Laden
+fetchStatus();
+
+// Event Listener für Button
+document.getElementById('updateButton').addEventListener('click', updateStatus);
