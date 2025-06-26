@@ -31,29 +31,29 @@
   <button id="saveBtn">Änderungen speichern</button>
   <div id="statusText">Lade Daten…</div>
 
-  <!-- 1) Supabase Client laden -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 1) Supabase UMD laden -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
   <script>
-    // 2) Supabase initialisieren
+    // 2) Nach dem Laden der Bibliothek: Client erzeugen
+    const { createClient } = supabase;
     const SUPA_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…'; // <–– vollständigen Key einsetzen
-    const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
-    const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // ← vollständigen Key einsetzen
+    const supa = createClient(SUPA_URL, SUPA_KEY);
 
-    // 3) UI-Elemente
+    const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
     const alarmBanner = document.getElementById('alarmBanner');
     const statusSelect = document.getElementById('statusSelect');
     const aeInput     = document.getElementById('aeInput');
     const saveBtn     = document.getElementById('saveBtn');
     const statusText  = document.getElementById('statusText');
-    const alarmSound  = new Audio('alarm-sound.mp3'); // optional
+    const alarmSound  = new Audio('alarm-sound.mp3');
 
     let lastAlarm = false;
 
-    // 4) Daten laden
+    // Daten vom Server holen
     async function loadData() {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supa
           .from('anlage_status')
           .select('status,ae,alarm')
           .eq('user_id', userId)
@@ -61,9 +61,8 @@
         if (error) throw error;
 
         statusSelect.value = data.status;
-        aeInput.value     = data.ae;
+        aeInput.value      = data.ae;
         updateAlarmUI(data.alarm);
-
         statusText.textContent =
           `Status: ${['AUS','ENTSCHÄRFT','SCHARF'][data.status]} | AE: ${data.ae}`;
       } catch (err) {
@@ -71,7 +70,7 @@
       }
     }
 
-    // 5) Status speichern
+    // Änderungen speichern
     async function saveData() {
       saveBtn.disabled = true;
       statusText.textContent = 'Speichere…';
@@ -80,11 +79,12 @@
           status: parseInt(statusSelect.value),
           ae:     parseInt(aeInput.value)
         };
-        const { error } = await supabase
+        const { error } = await supa
           .from('anlage_status')
           .update(payload)
           .eq('user_id', userId);
         if (error) throw error;
+
         statusText.textContent = 'Gespeichert: ' + new Date().toLocaleTimeString();
       } catch (err) {
         statusText.textContent = 'Fehler: ' + err.message;
@@ -93,13 +93,13 @@
       }
     }
 
-    // 6) Alarm-UI
+    // Alarm UI aktualisieren
     function updateAlarmUI(alarmActive) {
       if (alarmActive) {
         alarmBanner.style.display = 'block';
         if (!lastAlarm) {
           if (Notification.permission==='granted') {
-            new Notification('Alarm!', { body:'Alarmanlage ausgelöst!' });
+            new Notification('Alarm!', { body:'Die Alarmanlage wurde ausgelöst!' });
           }
           alarmSound.play().catch(()=>{});
         }
@@ -109,13 +109,12 @@
       lastAlarm = alarmActive;
     }
 
-    // 7) Realtime abonnieren (nach Supabase-Client-Init)
-    supabase
+    // Realtime-Subscription
+    supa
       .channel('public:anlage_status')
       .on('postgres_changes',
         { event:'UPDATE', schema:'public', table:'anlage_status', filter:`user_id=eq.${userId}` },
-        payload => {
-          const d = payload.new;
+        ({ new: d }) => {
           statusSelect.value = d.status;
           aeInput.value      = d.ae;
           updateAlarmUI(d.alarm);
@@ -125,18 +124,18 @@
       )
       .subscribe();
 
-    // 8) Polling als Fallback
+    // Fallback-Polling
     setInterval(loadData, 5000);
 
-    // 9) Notification-Rechte
+    // Notification-Rechte
     if (Notification.permission==='default') {
       Notification.requestPermission();
     }
 
-    // 10) Event-Handler
+    // Events
     saveBtn.addEventListener('click', saveData);
 
-    // 11) Erste Datenladung
+    // Erste Datenladung
     loadData();
   </script>
 </body>
