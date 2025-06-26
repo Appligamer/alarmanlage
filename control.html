@@ -1,116 +1,140 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Alarmanlage Steuerung</title>
-  <style>
-    body { font-family: Arial,sans-serif; max-width:500px; margin:2rem auto; background:#fafafa; padding:1rem; border-radius:8px; }
-    #alarmBanner { display:none; background:crimson; color:white; padding:1rem; font-size:1.25rem; text-align:center; margin-bottom:1rem; border-radius:4px; }
-    label { display:block; margin-top:1rem; font-weight:bold; }
-    select,input { width:100%; padding:0.5rem; margin-top:0.5rem; font-size:1rem; }
-    button { margin-top:1.5rem; width:100%; padding:0.75rem; font-size:1rem; background:#2a7ae2; color:white; border:none; border-radius:4px; }
-    #statusText { margin-top:1rem; color:#555; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alarmanlage Kontrolle</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 400px;
+    margin: 20px auto;
+    padding: 10px;
+    background: #f0f0f0;
+    border-radius: 8px;
+  }
+  label {
+    display: block;
+    margin-top: 15px;
+  }
+  select, input[type=number] {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    font-size: 16px;
+  }
+  button {
+    margin-top: 20px;
+    padding: 10px;
+    width: 100%;
+    font-size: 16px;
+    background-color: #2a7ae2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+  }
+  button:disabled {
+    background-color: #888;
+  }
+  #statusMessage {
+    margin-top: 20px;
+    min-height: 24px;
+  }
+</style>
 </head>
 <body>
+<h2>Alarmanlage Steuerung</h2>
 
-  <h1>Alarmanlage Steuerung</h1>
-  <div id="alarmBanner">⚠️ ALARM AKTIV! (SCHARF)</div>
+<label for="statusSelect">Status:</label>
+<select id="statusSelect">
+  <option value="aus">Aus</option>
+  <option value="entschaerft">Entschärft</option>
+  <option value="scharf">Scharf</option>
+</select>
 
-  <label for="statusSelect">Status</label>
-  <select id="statusSelect">
-    <option value="0">AUS</option>
-    <option value="1">ENTSCHÄRFT</option>
-    <option value="2">SCHARF</option>
-  </select>
+<label for="aeInput">Alarmentfernung (AE):</label>
+<input id="aeInput" type="number" min="0" max="1023" />
 
-  <label for="aeInput">Alarmentfernung (AE)</label>
-  <input id="aeInput" type="number" min="0" max="400" />
+<button id="saveBtn">Speichern</button>
 
-  <button id="saveBtn">Änderungen speichern</button>
-  <div id="statusText">Lade Daten…</div>
+<div id="statusMessage"></div>
 
-  <script>
-    // Supabase REST-Konfiguration
-    const API_BASE = 'https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status';
-    const FILTER   = '?user_id=eq.ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
-    const HEADERS  = {
-      'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      'Content-Type':  'application/json'
-    };
+<script>
+  const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
+  const supabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4;
 
-    const alarmBanner  = document.getElementById('alarmBanner');
-    const statusSelect = document.getElementById('statusSelect');
-    const aeInput      = document.getElementById('aeInput');
-    const saveBtn      = document.getElementById('saveBtn');
-    const statusText   = document.getElementById('statusText');
+  // User ID (fix aus deinem Setup, anpassen wenn nötig)
+  const userId = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
 
-    let lastAlarm = false;
+  const statusSelect = document.getElementById("statusSelect");
+  const aeInput = document.getElementById("aeInput");
+  const saveBtn = document.getElementById("saveBtn");
+  const statusMessage = document.getElementById("statusMessage");
 
-    // 1) Daten laden
-    async function loadData() {
-      try {
-        const res = await fetch(API_BASE + FILTER + '&select=status,ae', { headers: HEADERS });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const [row] = await res.json();
-        if (!row) throw new Error('Keine Daten');
-        const { status, ae } = row;
-
-        statusSelect.value = status;
-        aeInput.value      = ae;
-        statusText.textContent = `Status: ${['AUS','ENTSCHÄRFT','SCHARF'][status]} | AE: ${ae}`;
-        updateAlarmUI(status === 2);
-      } catch (e) {
-        statusText.textContent = 'Fehler: ' + e.message;
-        alarmBanner.style.display = 'none';
-      }
-    }
-
-    // 2) Änderungen speichern
-    async function saveData() {
-      saveBtn.disabled = true;
-      statusText.textContent = 'Speichere…';
-      try {
-        const payload = {
-          status: parseInt(statusSelect.value),
-          ae:     parseInt(aeInput.value)
-        };
-        const res = await fetch(API_BASE + FILTER, {
-          method: 'PATCH',
-          headers: HEADERS,
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        statusText.textContent = 'Gespeichert: ' + new Date().toLocaleTimeString();
-      } catch (e) {
-        statusText.textContent = 'Fehler: ' + e.message;
-      } finally {
-        saveBtn.disabled = false;
-      }
-    }
-
-    // 3) Alarm-UI + Notification
-    function updateAlarmUI(active) {
-      if (active) {
-        alarmBanner.style.display = 'block';
-        if (!lastAlarm && Notification.permission === 'granted') {
-          new Notification('Alarm!', { body: 'Alarmanlage ist SCHARF!' });
+  // Funktion: Aktuelle Daten laden
+  async function loadStatus() {
+    try {
+      const url = `${supabaseUrl}?user_id=eq.${userId}&select=status,ae`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseApiKey,
+          'Authorization': `Bearer ${supabaseApiKey}`,
+          'Content-Type': 'application/json'
         }
-      } else {
-        alarmBanner.style.display = 'none';
-      }
-      lastAlarm = active;
+      });
+      if (!res.ok) throw new Error(`Fehler beim Laden: ${res.status}`);
+
+      const data = await res.json();
+      if (data.length === 0) throw new Error("Keine Daten gefunden");
+
+      statusSelect.value = data[0].status;
+      aeInput.value = data[0].ae;
+
+      statusMessage.textContent = "Daten geladen.";
+    } catch (err) {
+      statusMessage.textContent = "Fehler: " + err.message;
     }
+  }
 
-    // Polling alle 5 Sekunden
-    setInterval(loadData, 5000);
+  // Funktion: Daten speichern
+  async function saveStatus() {
+    saveBtn.disabled = true;
+    statusMessage.textContent = "Speichere...";
 
-    // Init
-    if (Notification.permission === 'default') Notification.requestPermission();
-    saveBtn.addEventListener('click', saveData);
-    loadData();
-  </script>
+    try {
+      const body = {
+        status: statusSelect.value,
+        ae: parseInt(aeInput.value)
+      };
+
+      const url = `${supabaseUrl}?user_id=eq.${userId}`;
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseApiKey,
+          'Authorization': `Bearer ${supabaseApiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) throw new Error(`Fehler beim Speichern: ${res.status}`);
+
+      const data = await res.json();
+      statusMessage.textContent = "Erfolgreich gespeichert.";
+    } catch (err) {
+      statusMessage.textContent = "Fehler: " + err.message;
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  saveBtn.addEventListener("click", saveStatus);
+
+  // Beim Laden der Seite Daten laden
+  window.onload = loadStatus;
+</script>
 </body>
 </html>
