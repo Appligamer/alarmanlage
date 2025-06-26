@@ -1,16 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase Setup
+// Supabase-Konfiguration
 const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
 const supabaseKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// User-ID aus Login oder fest vergeben (hier fest)
 const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
+// Interne Werte
 let currentStatus = 'aus';
 let currentAe = 300;
 
-// Aktuelle Werte abrufen und anzeigen
+// Anzeige aktualisieren
 async function fetchStatus() {
   const { data, error } = await supabase
     .from('anlage_status')
@@ -19,18 +22,21 @@ async function fetchStatus() {
     .single();
 
   if (error || !data) {
-    console.error('Abruffehler:', error);
+    console.error('Fehler beim Abrufen:', error);
     return;
   }
 
   currentStatus = data.status;
   currentAe = data.ae;
 
-  document.getElementById('statusAnzeige').textContent = data.status;
-  document.getElementById('aeAnzeige').textContent = data.ae;
+  const statusAnzeige = document.getElementById('statusAnzeige');
+  const aeAnzeige = document.getElementById('aeAnzeige');
+
+  if (statusAnzeige) statusAnzeige.textContent = currentStatus;
+  if (aeAnzeige) aeAnzeige.textContent = currentAe;
 }
 
-// Neuen Status und AE-Wert speichern
+// Änderungen speichern
 async function updateStatus() {
   const { error } = await supabase
     .from('anlage_status')
@@ -38,38 +44,47 @@ async function updateStatus() {
     .eq('user_id', userId);
 
   if (error) {
-    console.error('Updatefehler:', error);
+    console.error('Fehler beim Aktualisieren:', error);
   } else {
-    fetchStatus(); // Anzeige aktualisieren
+    fetchStatus();
   }
 }
 
-// Event-Handler für Buttons
-document.getElementById('btnAus').addEventListener('click', () => {
-  currentStatus = 'aus';
-  updateStatus();
-});
+// Button-Aktionen
+function setupControls() {
+  const btnAus = document.getElementById('btnAus');
+  const btnEntschaerft = document.getElementById('btnEntschaerft');
+  const btnScharf = document.getElementById('btnScharf');
+  const btnAeMinus = document.getElementById('btnAeMinus');
+  const btnAePlus = document.getElementById('btnAePlus');
 
-document.getElementById('btnEntschaerft').addEventListener('click', () => {
-  currentStatus = 'entschärft';
-  updateStatus();
-});
+  if (btnAus) btnAus.addEventListener('click', () => {
+    currentStatus = 'aus';
+    updateStatus();
+  });
 
-document.getElementById('btnScharf').addEventListener('click', () => {
-  currentStatus = 'scharf';
-  updateStatus();
-});
+  if (btnEntschaerft) btnEntschaerft.addEventListener('click', () => {
+    currentStatus = 'entschärft';
+    updateStatus();
+  });
 
-document.getElementById('btnAeMinus').addEventListener('click', () => {
-  if (currentAe > 0) currentAe -= 10;
-  updateStatus();
-});
+  if (btnScharf) btnScharf.addEventListener('click', () => {
+    currentStatus = 'scharf';
+    updateStatus();
+  });
 
-document.getElementById('btnAePlus').addEventListener('click', () => {
-  if (currentAe < 1023) currentAe += 10;
-  updateStatus();
-});
+  if (btnAeMinus) btnAeMinus.addEventListener('click', () => {
+    currentAe = Math.max(0, currentAe - 10);
+    updateStatus();
+  });
 
-// Regelmäßige Aktualisierung der Anzeige
-setInterval(fetchStatus, 5000);
+  if (btnAePlus) btnAePlus.addEventListener('click', () => {
+    currentAe = Math.min(1023, currentAe + 10);
+    updateStatus();
+  });
+}
+
+// Initialisierung
+setupControls();
 fetchStatus();
+setInterval(fetchStatus, 5000);
