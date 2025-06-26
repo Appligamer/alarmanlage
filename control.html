@@ -31,16 +31,16 @@
   <button id="saveBtn">Änderungen speichern</button>
   <div id="statusText">Lade Daten…</div>
 
-  <!-- Supabase JS -->
+  <!-- 1) Supabase Client laden -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // 1) Supabase initialisieren
+    // 2) Supabase initialisieren
     const SUPA_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…'; // <–– ersetze komplett
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…'; // <–– vollständigen Key einsetzen
     const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
     const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-    // 2) UI-Elemente
+    // 3) UI-Elemente
     const alarmBanner = document.getElementById('alarmBanner');
     const statusSelect = document.getElementById('statusSelect');
     const aeInput     = document.getElementById('aeInput');
@@ -50,7 +50,7 @@
 
     let lastAlarm = false;
 
-    // 3) Daten laden
+    // 4) Daten laden
     async function loadData() {
       try {
         const { data, error } = await supabase
@@ -64,14 +64,14 @@
         aeInput.value     = data.ae;
         updateAlarmUI(data.alarm);
 
-        statusText.textContent = 
+        statusText.textContent =
           `Status: ${['AUS','ENTSCHÄRFT','SCHARF'][data.status]} | AE: ${data.ae}`;
       } catch (err) {
         statusText.textContent = 'Fehler: ' + err.message;
       }
     }
 
-    // 4) Status speichern
+    // 5) Status speichern
     async function saveData() {
       saveBtn.disabled = true;
       statusText.textContent = 'Speichere…';
@@ -93,12 +93,14 @@
       }
     }
 
-    // 5) UI bei Alarm
+    // 6) Alarm-UI
     function updateAlarmUI(alarmActive) {
       if (alarmActive) {
         alarmBanner.style.display = 'block';
         if (!lastAlarm) {
-          if (Notification.permission==='granted') new Notification('Alarm!', { body:'Alarmanlage ausgelöst!' });
+          if (Notification.permission==='granted') {
+            new Notification('Alarm!', { body:'Alarmanlage ausgelöst!' });
+          }
           alarmSound.play().catch(()=>{});
         }
       } else {
@@ -107,7 +109,7 @@
       lastAlarm = alarmActive;
     }
 
-    // 6) Realtime abonnieren
+    // 7) Realtime abonnieren (nach Supabase-Client-Init)
     supabase
       .channel('public:anlage_status')
       .on('postgres_changes',
@@ -123,18 +125,19 @@
       )
       .subscribe();
 
-    // 7) Periodisches Nachladen als Fallback
+    // 8) Polling als Fallback
     setInterval(loadData, 5000);
 
-    // 8) Notification-Permission
-    if (Notification.permission==='default') Notification.requestPermission();
+    // 9) Notification-Rechte
+    if (Notification.permission==='default') {
+      Notification.requestPermission();
+    }
 
-    // 9) Event-Handler
+    // 10) Event-Handler
     saveBtn.addEventListener('click', saveData);
 
-    // 10) Initial
+    // 11) Erste Datenladung
     loadData();
   </script>
-
 </body>
 </html>
