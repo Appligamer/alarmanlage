@@ -1,60 +1,140 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <title>Alarmanlage Steuerung</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alarmanlage Kontrolle</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 400px;
+    margin: 20px auto;
+    padding: 10px;
+    background: #f0f0f0;
+    border-radius: 8px;
+  }
+  label {
+    display: block;
+    margin-top: 15px;
+  }
+  select, input[type=number] {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    font-size: 16px;
+  }
+  button {
+    margin-top: 20px;
+    padding: 10px;
+    width: 100%;
+    font-size: 16px;
+    background-color: #2a7ae2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+  }
+  button:disabled {
+    background-color: #888;
+  }
+  #statusMessage {
+    margin-top: 20px;
+    min-height: 24px;
+  }
+</style>
 </head>
 <body>
-  <h1>Alarmanlage Steuerung</h1>
+<h2>Alarmanlage Steuerung</h2>
 
-  <button id="updateBtn">Status und AE updaten</button>
+<label for="statusSelect">Status:</label>
+<select id="statusSelect">
+  <option value="aus">Aus</option>
+  <option value="entschaerft">Entschärft</option>
+  <option value="scharf">Scharf</option>
+</select>
 
-  <script>
-    const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
-    const supabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+<label for="aeInput">Alarmentfernung (AE):</label>
+<input id="aeInput" type="number" min="0" max="1023" />
 
-    // Deine User-ID für Filter (korrekt einsetzen)
-    const userId = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
+<button id="saveBtn">Speichern</button>
 
-    async function updateStatus(newStatus, newAe) {
-      try {
-        const url = `${supabaseUrl}?user_id=eq.${userId}`;
-        
-        const response = await fetch(url, {
-          method: 'PATCH',
-          headers: {
-            'apikey': supabaseApiKey,
-            'Authorization': `Bearer ${supabaseApiKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'  // damit gibt Supabase geänderte Daten zurück
-          },
-          body: JSON.stringify({
-            status: newStatus,
-            ae: newAe
-          })
-        });
+<div id="statusMessage"></div>
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Fehler beim Aktualisieren:', response.status, errorText);
-          alert("Update fehlgeschlagen: " + response.status);
-          return;
+<script>
+  const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
+  const supabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4;
+
+  // User ID (fix aus deinem Setup, anpassen wenn nötig)
+  const userId = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
+
+  const statusSelect = document.getElementById("statusSelect");
+  const aeInput = document.getElementById("aeInput");
+  const saveBtn = document.getElementById("saveBtn");
+  const statusMessage = document.getElementById("statusMessage");
+
+  // Funktion: Aktuelle Daten laden
+  async function loadStatus() {
+    try {
+      const url = `${supabaseUrl}?user_id=eq.${userId}&select=status,ae`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseApiKey,
+          'Authorization': `Bearer ${supabaseApiKey}`,
+          'Content-Type': 'application/json'
         }
+      });
+      if (!res.ok) throw new Error(`Fehler beim Laden: ${res.status}`);
 
-        const data = await response.json();
-        console.log('Update erfolgreich:', data);
-        alert("Update erfolgreich: " + JSON.stringify(data));
-      } catch (error) {
-        console.error('Update Fehler:', error);
-        alert("Fehler beim Update: " + error.message);
-      }
+      const data = await res.json();
+      if (data.length === 0) throw new Error("Keine Daten gefunden");
+
+      statusSelect.value = data[0].status;
+      aeInput.value = data[0].ae;
+
+      statusMessage.textContent = "Daten geladen.";
+    } catch (err) {
+      statusMessage.textContent = "Fehler: " + err.message;
     }
+  }
 
-    // Beispiel-Button, um Update auszulösen
-    document.getElementById("updateBtn").addEventListener("click", () => {
-      // Hier Status und AE eintragen (kannst du durch UI ersetzen)
-      updateStatus("scharf", 300);
-    });
-  </script>
+  // Funktion: Daten speichern
+  async function saveStatus() {
+    saveBtn.disabled = true;
+    statusMessage.textContent = "Speichere...";
+
+    try {
+      const body = {
+        status: statusSelect.value,
+        ae: parseInt(aeInput.value)
+      };
+
+      const url = `${supabaseUrl}?user_id=eq.${userId}`;
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseApiKey,
+          'Authorization': `Bearer ${supabaseApiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) throw new Error(`Fehler beim Speichern: ${res.status}`);
+
+      const data = await res.json();
+      statusMessage.textContent = "Erfolgreich gespeichert.";
+    } catch (err) {
+      statusMessage.textContent = "Fehler: " + err.message;
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  saveBtn.addEventListener("click", saveStatus);
+
+  // Beim Laden der Seite Daten laden
+  window.onload = loadStatus;
+</script>
 </body>
 </html>
