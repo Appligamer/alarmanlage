@@ -1,134 +1,161 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alarmanlagensteuerung</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
-      padding: 2rem;
-      color: #333;
-    }
-    h1 {
-      text-align: center;
-    }
-    .container {
-      max-width: 500px;
-      margin: auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    label {
-      display: block;
-      margin-top: 1rem;
-    }
-    input, select {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      margin-top: 1.5rem;
-      padding: 0.75rem;
-      width: 100%;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .status {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: #eef;
-      border-left: 5px solid #007bff;
-      border-radius: 6px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alarmanlage Steuerung</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 1rem;
+    background: #f0f0f0;
+    color: #222;
+  }
+  #alarmBanner {
+    display: none;
+    background-color: red;
+    color: white;
+    padding: 1rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  #statusContainer {
+    margin-bottom: 1rem;
+  }
+  label {
+    display: inline-block;
+    width: 120px;
+  }
+  select, input[type=number] {
+    width: 100px;
+    margin-right: 1rem;
+  }
+  button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  #info {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #555;
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>Alarmanlagensteuerung</h1>
-    <label for="ae">Alarmentfernung (AE)</label>
-    <input type="number" id="ae" placeholder="z.B. 200">
 
-    <label for="status">Status</label>
-    <select id="status">
-      <option value="aus">Aus</option>
-      <option value="entschaerft">Entschärft</option>
-      <option value="scharf">Scharf</option>
-    </select>
+<h1>Alarmanlage Steuerung</h1>
 
-    <button onclick="updateStatus()">Aktualisieren</button>
+<div id="alarmBanner">ALARM AKTIV!</div>
 
-    <div class="status" id="alarmStatus">
-      Lade aktuellen Status...
-    </div>
-  </div>
+<div id="statusContainer">
+  <label for="statusSelect">Status:</label>
+  <select id="statusSelect">
+    <option value="0">AUS</option>
+    <option value="1">ENTSCHÄRFT</option>
+    <option value="2">SCHARF</option>
+  </select>
+</div>
 
-  <script>
-    const url = 'https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status?user_id=eq.ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
-    const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+<div id="aeContainer">
+  <label for="aeInput">AE Wert:</label>
+  <input type="number" id="aeInput" min="0" max="400" />
+</div>
 
-    async function fetchStatus() {
-      const res = await fetch(url, {
-        headers: {
-          apikey: apiKey,
-          Authorization: `Bearer ${apiKey}`
-        }
-      });
-      const data = await res.json();
-      if (data.length > 0) {
-        document.getElementById('status').value = data[0].status;
-        document.getElementById('ae').value = data[0].ae;
-        document.getElementById('alarmStatus').innerText = data[0].alarm ? 'ALARM AKTIVIERT!' : 'Kein Alarm.';
+<button id="updateButton">Status aktualisieren</button>
 
-        if (data[0].alarm) {
-          notify("Alarm wurde ausgelöst!");
-        }
+<div id="info"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Supabase Einstellungen
+  const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+  // Nutzer-ID oder eindeutiger Filter, damit wir nur den richtigen Datensatz lesen und schreiben
+  const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
+
+  // HTML Elemente
+  const statusSelect = document.getElementById('statusSelect');
+  const aeInput = document.getElementById('aeInput');
+  const updateButton = document.getElementById('updateButton');
+  const alarmBanner = document.getElementById('alarmBanner');
+  const info = document.getElementById('info');
+
+  // Status-Text Array (muss zu ESP32 passen)
+  const statusText = ["AUS", "ENTSCHÄRFT", "SCHARF"];
+
+  // Daten laden
+  async function loadStatus() {
+    const { data, error } = await supabase
+      .from('anlage_status')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      info.textContent = 'Fehler beim Laden der Daten: ' + error.message;
+      return;
+    }
+
+    statusSelect.value = data.status.toString();
+    aeInput.value = data.ae;
+    alarmBanner.style.display = data.alarm ? 'block' : 'none';
+    info.textContent = 'Letztes Update: ' + new Date().toLocaleTimeString();
+  }
+
+  // Status aktualisieren (PATCH)
+  async function updateStatus() {
+    const status = parseInt(statusSelect.value);
+    const ae = parseInt(aeInput.value);
+
+    if (isNaN(ae) || ae < 0 || ae > 400) {
+      alert('Bitte einen gültigen AE Wert zwischen 0 und 400 eingeben.');
+      return;
+    }
+
+    const payload = {
+      status: status,
+      ae: ae
+    };
+
+    const { error } = await supabase
+      .from('anlage_status')
+      .update(payload)
+      .eq('user_id', userId);
+
+    if (error) {
+      info.textContent = 'Fehler beim Aktualisieren: ' + error.message;
+    } else {
+      info.textContent = 'Status erfolgreich aktualisiert: ' + new Date().toLocaleTimeString();
+      await loadStatus();
+    }
+  }
+
+  // Live-Update mit Supabase Realtime (wenn in DB unterstützt)
+  supabase
+    .channel('public:anlage_status')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'anlage_status', filter: `user_id=eq.${userId}` },
+      payload => {
+        console.log('Realtime update:', payload);
+        loadStatus();
       }
-    }
+    )
+    .subscribe();
 
-    async function updateStatus() {
-      const ae = parseInt(document.getElementById('ae').value);
-      const status = document.getElementById('status').value;
+  // Button Event
+  updateButton.addEventListener('click', updateStatus);
 
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          apikey: apiKey,
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ae, status })
-      });
+  // Initialer Status-Load
+  loadStatus();
 
-      if (res.ok) {
-        fetchStatus();
-      } else {
-        alert('Fehler beim Aktualisieren');
-      }
-    }
+  // Optional: Alle 5 Sekunden automatisch Status nachladen
+  setInterval(loadStatus, 5000);
+</script>
 
-    function notify(text) {
-      if (Notification.permission === "granted") {
-        new Notification(text);
-      }
-    }
-
-    // Fragen, ob Benachrichtigungen erlaubt sind
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
-
-    setInterval(fetchStatus, 4000); // alle 4 Sekunden aktualisieren
-    fetchStatus();
-  </script>
 </body>
 </html>
