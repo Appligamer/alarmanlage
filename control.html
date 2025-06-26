@@ -1,14 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase-Konfiguration
+// Supabase Setup
 const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+const supabaseKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Benutzer-ID
 const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
-// Status und AE-Wert abrufen
+let currentStatus = 'aus';
+let currentAe = 300;
+
+// Aktuelle Werte abrufen und anzeigen
 async function fetchStatus() {
   const { data, error } = await supabase
     .from('anlage_status')
@@ -16,44 +18,58 @@ async function fetchStatus() {
     .eq('user_id', userId)
     .single();
 
-  if (error) {
-    console.error('Fehler beim Abrufen:', error);
+  if (error || !data) {
+    console.error('Abruffehler:', error);
     return;
   }
 
-  console.log('Status:', data.status);
-  console.log('AE:', data.ae);
+  currentStatus = data.status;
+  currentAe = data.ae;
 
-  // UI aktualisieren
-  document.getElementById('statusAnzeige').innerText = `Status: ${data.status}`;
-  document.getElementById('aeAnzeige').innerText = `AE-Wert: ${data.ae}`;
-  document.getElementById('aeInput').value = data.ae;
-  document.getElementById('statusSelect').value = data.status;
+  document.getElementById('statusAnzeige').textContent = data.status;
+  document.getElementById('aeAnzeige').textContent = data.ae;
 }
 
-// Status und AE-Wert aktualisieren
+// Neuen Status und AE-Wert speichern
 async function updateStatus() {
-  const newStatus = document.getElementById('statusSelect').value;
-  const newAe = parseInt(document.getElementById('aeInput').value, 10);
-
   const { error } = await supabase
     .from('anlage_status')
-    .update({ status: newStatus, ae: newAe })
+    .update({ status: currentStatus, ae: currentAe })
     .eq('user_id', userId);
 
   if (error) {
-    console.error('Fehler beim Aktualisieren:', error);
+    console.error('Updatefehler:', error);
   } else {
-    console.log('Update erfolgreich');
-    fetchStatus(); // Direkt neu laden
+    fetchStatus(); // Anzeige aktualisieren
   }
 }
 
-// Automatisch alle 5 Sekunden aktualisieren
+// Event-Handler für Buttons
+document.getElementById('btnAus').addEventListener('click', () => {
+  currentStatus = 'aus';
+  updateStatus();
+});
+
+document.getElementById('btnEntschaerft').addEventListener('click', () => {
+  currentStatus = 'entschärft';
+  updateStatus();
+});
+
+document.getElementById('btnScharf').addEventListener('click', () => {
+  currentStatus = 'scharf';
+  updateStatus();
+});
+
+document.getElementById('btnAeMinus').addEventListener('click', () => {
+  if (currentAe > 0) currentAe -= 10;
+  updateStatus();
+});
+
+document.getElementById('btnAePlus').addEventListener('click', () => {
+  if (currentAe < 1023) currentAe += 10;
+  updateStatus();
+});
+
+// Regelmäßige Aktualisierung der Anzeige
 setInterval(fetchStatus, 5000);
-
-// Erstes Laden
 fetchStatus();
-
-// Event Listener für Button
-document.getElementById('updateButton').addEventListener('click', updateStatus);
