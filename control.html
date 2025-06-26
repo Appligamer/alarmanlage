@@ -1,108 +1,60 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Alarmanlage Steuerung</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 400px; margin: 2rem auto; }
-  button { margin: 0.3rem; padding: 0.5rem 1rem; }
-  #statusAnzeige, #aeAnzeige { margin: 1rem 0; font-weight: bold; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Alarmanlage Steuerung</title>
 </head>
 <body>
+  <h1>Alarmanlage Steuerung</h1>
 
-<h1>Alarmanlage Steuerung</h1>
+  <button id="updateBtn">Status und AE updaten</button>
 
-<div id="statusAnzeige">Status: ...</div>
-<div id="aeAnzeige">AE-Wert: ...</div>
+  <script>
+    const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
+    const supabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
 
-<div>
-  <button id="btnAus">Aus</button>
-  <button id="btnEntschaerft">Entschärft</button>
-  <button id="btnScharf">Scharf</button>
-</div>
+    // Deine User-ID für Filter (korrekt einsetzen)
+    const userId = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
 
-<div>
-  <button id="btnAeMinus">AE -</button>
-  <button id="btnAePlus">AE +</button>
-</div>
+    async function updateStatus(newStatus, newAe) {
+      try {
+        const url = `${supabaseUrl}?user_id=eq.${userId}`;
+        
+        const response = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseApiKey,
+            'Authorization': `Bearer ${supabaseApiKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'  // damit gibt Supabase geänderte Daten zurück
+          },
+          body: JSON.stringify({
+            status: newStatus,
+            ae: newAe
+          })
+        });
 
-<script>
-  const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status';
-  const supabaseApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-  const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
-
-  let currentStatus = 'aus';
-  let currentAe = 300;
-
-  async function fetchStatus() {
-    try {
-      const res = await fetch(`${supabaseUrl}?user_id=eq.${userId}`, {
-        headers: {
-          'apikey': supabaseApiKey,
-          'Authorization': `Bearer ${supabaseApiKey}`,
-          'Content-Type': 'application/json'
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Fehler beim Aktualisieren:', response.status, errorText);
+          alert("Update fehlgeschlagen: " + response.status);
+          return;
         }
-      });
-      if (!res.ok) throw new Error('Fehler beim Abrufen');
-      const data = await res.json();
-      if (data.length === 0) {
-        console.error('Keine Daten gefunden');
-        return;
+
+        const data = await response.json();
+        console.log('Update erfolgreich:', data);
+        alert("Update erfolgreich: " + JSON.stringify(data));
+      } catch (error) {
+        console.error('Update Fehler:', error);
+        alert("Fehler beim Update: " + error.message);
       }
-      currentStatus = data[0].status;
-      currentAe = data[0].ae;
-      document.getElementById('statusAnzeige').textContent = `Status: ${currentStatus}`;
-      document.getElementById('aeAnzeige').textContent = `AE-Wert: ${currentAe}`;
-    } catch (e) {
-      console.error(e);
     }
-  }
 
-  async function updateStatus() {
-    try {
-      const res = await fetch(`${supabaseUrl}?user_id=eq.${userId}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': supabaseApiKey,
-          'Authorization': `Bearer ${supabaseApiKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({ status: currentStatus, ae: currentAe })
-      });
-      if (!res.ok) throw new Error('Fehler beim Aktualisieren');
-      await fetchStatus(); // Status nach Update neu laden
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  document.getElementById('btnAus').addEventListener('click', () => {
-    currentStatus = 'aus';
-    updateStatus();
-  });
-  document.getElementById('btnEntschaerft').addEventListener('click', () => {
-    currentStatus = 'entschärft';
-    updateStatus();
-  });
-  document.getElementById('btnScharf').addEventListener('click', () => {
-    currentStatus = 'scharf';
-    updateStatus();
-  });
-  document.getElementById('btnAeMinus').addEventListener('click', () => {
-    currentAe = Math.max(0, currentAe - 10);
-    updateStatus();
-  });
-  document.getElementById('btnAePlus').addEventListener('click', () => {
-    currentAe = Math.min(1023, currentAe + 10);
-    updateStatus();
-  });
-
-  fetchStatus();
-  setInterval(fetchStatus, 5000);
-</script>
-
+    // Beispiel-Button, um Update auszulösen
+    document.getElementById("updateBtn").addEventListener("click", () => {
+      // Hier Status und AE eintragen (kannst du durch UI ersetzen)
+      updateStatus("scharf", 300);
+    });
+  </script>
 </body>
 </html>
