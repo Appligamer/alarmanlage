@@ -1,14 +1,14 @@
-<!DOCTYPE html>
+<!DOCT<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Alarmanlagensteuerung</title>
+  <title>Alarmanlagen-Steuerung</title>
   <style>
-    body { font-family: Arial,sans-serif; background:#f4f6f8; margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
-    .panel { background:#fff; padding:2rem; border-radius:8px; box-shadow:0 0 15px rgba(0,0,0,0.1); width:320px; text-align:center; }
+    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
+    .panel { background:#fff; padding:2rem; border-radius:8px; box-shadow:0 0 15px rgba(0,0,0,0.1); width:360px; text-align:center; }
     .panel h1 { margin-bottom:1rem; font-size:1.4rem; }
-    .status, .ae { margin:0.5rem 0; font-size:1.1rem; }
+    .status, .ae, .uid, .updated { margin:0.5rem 0; font-size:1.1rem; }
     .value { font-weight:bold; color:#0066cc; }
     button, input { width:100%; padding:0.75rem; margin:0.5rem 0; font-size:1rem; }
     button { background:#007bff; color:#fff; border:none; border-radius:5px; cursor:pointer; }
@@ -25,60 +25,55 @@
     <h1>Alarmanlagen-Steuerung</h1>
     <div class="status">Status: <span id="statusValue" class="value">–</span></div>
     <div class="ae">AE: <span id="aeValue" class="value">–</span> cm</div>
+    <div class="updated">Letzte Änderung: <span id="updatedValue" class="value">–</span></div>
 
     <button id="toggleBtn">Status wechseln</button>
-    <input type="number" id="aeInput" placeholder="AE (cm)" min="0" max="1000">
+
+    <input type="number" id="aeInput" placeholder="AE (0–1000 cm)" min="0" max="1000">
     <button id="setAeBtn">AE setzen</button>
 
     <div id="message" class="message"></div>
   </div>
 
   <script>
-    // ←--- Hier deine Supabase-Daten einsetzen:
     const SUPABASE_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInJlZiI6InR5cCI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
     const USER_ID       = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // UI-Elemente
-    const statusEl  = document.getElementById('statusValue');
-    const aeEl      = document.getElementById('aeValue');
-    const toggleBtn = document.getElementById('toggleBtn');
-    const aeInput   = document.getElementById('aeInput');
-    const setAeBtn  = document.getElementById('setAeBtn');
-    const msgEl     = document.getElementById('message');
+    const statusEl   = document.getElementById('statusValue');
+    const aeEl       = document.getElementById('aeValue');
+    const updatedEl  = document.getElementById('updatedValue');
+    const toggleBtn  = document.getElementById('toggleBtn');
+    const aeInput    = document.getElementById('aeInput');
+    const setAeBtn   = document.getElementById('setAeBtn');
+    const msgEl      = document.getElementById('message');
 
-    let currentRecord = null;
-
-    // Status-List zum Durchschalten
-    const STATUS_ORDER = ['aus','entschaerft','scharf'];
+    let current = null;
 
     function showMessage(text, type='') {
       msgEl.textContent = text;
       msgEl.className = type ? `message ${type}` : 'message';
     }
 
-    // UI aktualisieren
     function render() {
-      if (!currentRecord) return;
-      statusEl.textContent = currentRecord.status.toUpperCase();
-      aeEl.textContent     = currentRecord.ae;
-      aeInput.value        = currentRecord.ae;
+      if (!current) return;
+      statusEl.textContent  = current.status.toUpperCase();
+      aeEl.textContent      = current.ae;
+      updatedEl.textContent = new Date(current.updated_at).toLocaleString();
+      aeInput.value         = current.ae;
     }
 
-    // Daten laden
     async function load() {
       try {
         const { data, error } = await supabase
           .from('anlage_status')
-          .select('*')
+          .select('status,ae,updated_at')
           .eq('user_id', USER_ID)
-          .limit(1)
           .single();
-
         if (error) throw error;
-        currentRecord = data;
+        current = data;
         render();
         showMessage('', '');
       } catch (e) {
@@ -87,47 +82,43 @@
       }
     }
 
-    // Status wechseln
     async function toggleStatus() {
-      if (!currentRecord) return;
-      const idx = STATUS_ORDER.indexOf(currentRecord.status);
-      const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
-
+      if (!current) return;
+      const next = {
+        'aus': 'entschaerft',
+        'entschaerft': 'scharf',
+        'scharf': 'aus'
+      }[current.status] || 'aus';
       await update({ status: next });
     }
 
-    // AE setzen
     async function setAe() {
-      const newAe = parseInt(aeInput.value);
-      if (isNaN(newAe) || newAe < 0 || newAe > 1000) {
-        showMessage('AE muss zwischen 0 und 1000 liegen', 'error');
+      const val = parseInt(aeInput.value);
+      if (isNaN(val) || val < 0 || val > 1000) {
+        showMessage('Ungültiger AE-Wert', 'error');
         return;
       }
-      await update({ ae: newAe });
+      await update({ ae: val });
     }
 
-    // Allgemeines Update
     async function update(fields) {
       try {
         const { error } = await supabase
           .from('anlage_status')
           .update(fields)
           .eq('user_id', USER_ID);
-
         if (error) throw error;
         showMessage('Erfolgreich gespeichert', 'success');
-        await load();  // nachladen für Konsistenz
+        await load();
       } catch (e) {
         console.error(e);
-        showMessage('Speicherfehler: ' + e.message, 'error');
+        showMessage('Fehler beim Speichern: ' + e.message, 'error');
       }
     }
 
-    // Event-Handler
     toggleBtn.addEventListener('click', toggleStatus);
-    setAeBtn .addEventListener('click', setAe);
+    setAeBtn.addEventListener('click', setAe);
 
-    // Polling alle 5 Sekunden
     setInterval(load, 5000);
     load();
   </script>
