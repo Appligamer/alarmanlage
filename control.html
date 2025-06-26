@@ -16,7 +16,7 @@
 <body>
 
   <h1>Alarmanlage Steuerung</h1>
-  <div id="alarmBanner">⚠️ ALARM AKTIV!</div>
+  <div id="alarmBanner">⚠️ ALARM AKTIV! (SCHARF)</div>
 
   <label for="statusSelect">Status</label>
   <select id="statusSelect">
@@ -32,11 +32,11 @@
   <div id="statusText">Lade Daten…</div>
 
   <script>
-    // API-Konfiguration
+    // Supabase REST-Konfiguration
     const API_BASE = 'https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status';
     const FILTER   = '?user_id=eq.ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
     const HEADERS  = {
-      'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', // dein anon-Key
+      'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       'Content-Type':  'application/json'
     };
@@ -52,16 +52,16 @@
     // 1) Daten laden
     async function loadData() {
       try {
-        const res = await fetch(API_BASE + FILTER, { headers: HEADERS });
+        const res = await fetch(API_BASE + FILTER + '&select=status,ae', { headers: HEADERS });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const [row] = await res.json();
         if (!row) throw new Error('Keine Daten');
-        const { status, ae, alarm } = row;
+        const { status, ae } = row;
 
         statusSelect.value = status;
         aeInput.value      = ae;
         statusText.textContent = `Status: ${['AUS','ENTSCHÄRFT','SCHARF'][status]} | AE: ${ae}`;
-        updateAlarmUI(alarm);
+        updateAlarmUI(status === 2);
       } catch (e) {
         statusText.textContent = 'Fehler: ' + e.message;
         alarmBanner.style.display = 'none';
@@ -91,12 +91,12 @@
       }
     }
 
-    // 3) Alarm-UI und Notification
+    // 3) Alarm-UI + Notification
     function updateAlarmUI(active) {
       if (active) {
         alarmBanner.style.display = 'block';
         if (!lastAlarm && Notification.permission === 'granted') {
-          new Notification('Alarm!', { body: 'Alarmanlage wurde ausgelöst!' });
+          new Notification('Alarm!', { body: 'Alarmanlage ist SCHARF!' });
         }
       } else {
         alarmBanner.style.display = 'none';
@@ -108,8 +108,7 @@
     setInterval(loadData, 5000);
 
     // Init
-    if (Notification.permission === 'default')
-      Notification.requestPermission();
+    if (Notification.permission === 'default') Notification.requestPermission();
     saveBtn.addEventListener('click', saveData);
     loadData();
   </script>
