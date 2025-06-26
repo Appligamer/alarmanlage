@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Supabase Ping Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Supabase Ping Test</h1>
+  <button id="btn">Ping</button>
+  <pre id="out"></pre>
+
+  <script>
+    const SUPA_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX...'; // anon key hier
+    const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+    const btn = document.getElementById('btn');
+    const out = document.getElementById('out');
+
+    btn.onclick = async () => {
+      out.textContent = '⏳ sende Test-Request…';
+      try {
+        // Einfacher SELECT, um API-Key & RLS zu prüfen
+        const { data, error, status } = await sb
+          .from('anlage_status')
+          .select('user_id')
+          .limit(1);
+
+        if (error) {
+          out.textContent = `❌ Fehler (${status}): ${error.message}`;
+        } else {
+          out.textContent = `✅ OK (${status}) – Daten: ` + JSON.stringify(data);
+        }
+      } catch (e) {
+        out.textContent = `⚠️ Ausnahme:\n${e.message}`;
+      }
+    };
+  </script>
+</body>
+</html>
