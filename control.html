@@ -1,90 +1,30 @@
-import { createClient } from '@supabase/supabase-js';
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alarmanlage Steuerung</title>
+  <style>
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    h1, h2 {
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <h1>Status: <span id="statusAnzeige">–</span></h1>
+  <h2>Alarmentfernung: <span id="aeAnzeige">–</span></h2>
 
-// Supabase-Konfiguration
-const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-const supabaseKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4';
-const supabase = createClient(supabaseUrl, supabaseKey);
+  <button id="btnAus">Aus</button>
+  <button id="btnEntschaerft">Entschärft</button>
+  <button id="btnScharf">Scharf</button>
+  <br><br>
+  <button id="btnAeMinus">- AE</button>
+  <button id="btnAePlus">+ AE</button>
 
-// User-ID aus Login oder fest vergeben (hier fest)
-const userId = 'ae3e82b9-eedf-49d8-afdc-afcbc9da9669';
-
-// Interne Werte
-let currentStatus = 'aus';
-let currentAe = 300;
-
-// Anzeige aktualisieren
-async function fetchStatus() {
-  const { data, error } = await supabase
-    .from('anlage_status')
-    .select('status, ae')
-    .eq('user_id', userId)
-    .single();
-
-  if (error || !data) {
-    console.error('Fehler beim Abrufen:', error);
-    return;
-  }
-
-  currentStatus = data.status;
-  currentAe = data.ae;
-
-  const statusAnzeige = document.getElementById('statusAnzeige');
-  const aeAnzeige = document.getElementById('aeAnzeige');
-
-  if (statusAnzeige) statusAnzeige.textContent = currentStatus;
-  if (aeAnzeige) aeAnzeige.textContent = currentAe;
-}
-
-// Änderungen speichern
-async function updateStatus() {
-  const { error } = await supabase
-    .from('anlage_status')
-    .update({ status: currentStatus, ae: currentAe })
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Fehler beim Aktualisieren:', error);
-  } else {
-    fetchStatus();
-  }
-}
-
-// Button-Aktionen
-function setupControls() {
-  const btnAus = document.getElementById('btnAus');
-  const btnEntschaerft = document.getElementById('btnEntschaerft');
-  const btnScharf = document.getElementById('btnScharf');
-  const btnAeMinus = document.getElementById('btnAeMinus');
-  const btnAePlus = document.getElementById('btnAePlus');
-
-  if (btnAus) btnAus.addEventListener('click', () => {
-    currentStatus = 'aus';
-    updateStatus();
-  });
-
-  if (btnEntschaerft) btnEntschaerft.addEventListener('click', () => {
-    currentStatus = 'entschärft';
-    updateStatus();
-  });
-
-  if (btnScharf) btnScharf.addEventListener('click', () => {
-    currentStatus = 'scharf';
-    updateStatus();
-  });
-
-  if (btnAeMinus) btnAeMinus.addEventListener('click', () => {
-    currentAe = Math.max(0, currentAe - 10);
-    updateStatus();
-  });
-
-  if (btnAePlus) btnAePlus.addEventListener('click', () => {
-    currentAe = Math.min(1023, currentAe + 10);
-    updateStatus();
-  });
-}
-
-// Initialisierung
-setupControls();
-fetchStatus();
-setInterval(fetchStatus, 5000);
+  <script type="module" src="./steuerung.js"></script>
+</body>
+</html>
