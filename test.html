@@ -1,41 +1,24 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <title>Supabase Ping Test</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-  <h1>Supabase Ping Test</h1>
-  <button id="btn">Ping</button>
-  <pre id="out"></pre>
+import { createClient } from '@supabase/supabase-js'
 
-  <script>
-    const SUPA_URL = 'https://rshbpsxqbabpxhdztozz.supabase.co';
-    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX...'; // anon key hier
-    const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+// Deine Supabase-Daten
+const supabaseUrl = 'https://rshbpsxqbabpxhdztozz.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4'
 
-    const btn = document.getElementById('btn');
-    const out = document.getElementById('out');
+// Supabase-Client initialisieren
+const supabase = createClient(supabaseUrl, supabaseKey)
 
-    btn.onclick = async () => {
-      out.textContent = '⏳ sende Test-Request…';
-      try {
-        // Einfacher SELECT, um API-Key & RLS zu prüfen
-        const { data, error, status } = await sb
-          .from('anlage_status')
-          .select('user_id')
-          .limit(1);
+// Abfrage ausführen
+async function fetchUserId() {
+  const { data, error } = await supabase
+    .from('anlage_status')
+    .select('user_id')
+    .limit(1)
 
-        if (error) {
-          out.textContent = `❌ Fehler (${status}): ${error.message}`;
-        } else {
-          out.textContent = `✅ OK (${status}) – Daten: ` + JSON.stringify(data);
-        }
-      } catch (e) {
-        out.textContent = `⚠️ Ausnahme:\n${e.message}`;
-      }
-    };
-  </script>
-</body>
-</html>
+  if (error) {
+    console.error('❌ Fehler beim Abrufen:', error)
+  } else {
+    console.log('✅ Erfolgreich:', data)
+  }
+}
+
+fetchUserId()
