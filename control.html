@@ -1,111 +1,158 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Alarmanlage Websteuerung</title>
+  <meta charset="UTF-8">
+  <title>Alarmanlagen-Steuerung</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      text-align: center;
+      padding: 40px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .status {
+      margin: 20px 0;
+      font-size: 1.2em;
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+      margin: 30px 0;
+    }
+
+    .buttons button {
+      background-color: #333;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      font-size: 1em;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+
+    .buttons button:hover {
+      background-color: #555;
+    }
+
+    #alarm-banner {
+      background-color: red;
+      color: white;
+      font-weight: bold;
+      padding: 15px;
+      display: none;
+      margin-bottom: 30px;
+      font-size: 1.3em;
+      border-radius: 8px;
+    }
+
+    .ae-controls {
+      margin-top: 20px;
+    }
+
+    .ae-controls input {
+      width: 60px;
+      text-align: center;
+      font-size: 1em;
+    }
+
+    .ae-controls button {
+      margin-left: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Alarmanlage Websteuerung</h1>
+  <h1>Alarmanlagen-Steuerung</h1>
 
-<div>Status: <span id="status">lade...</span></div>
-<div>Alarm: <span id="alarm">lade...</span></div>
-<div>AE Wert: <span id="ae">lade...</span></div>
+  <div id="alarm-banner">ALARM WURDE AUSGELÖST!</div>
 
-<button id="toggleStatus">Status wechseln</button>
-<button id="toggleAlarm">Alarm an/aus</button>
+  <div class="status">
+    <p><strong>Status:</strong> <span id="status-text">Lade...</span></p>
+    <p><strong>Grenzwert (Web):</strong> <span id="ae-value">-</span> cm</p>
+  </div>
 
-<script>
-const API_URL = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
-const USER_ID = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
-const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+  <div class="buttons">
+    <button onclick="sendeStatus('AUS')">Ausschalten</button>
+    <button onclick="sendeStatus('ENTSCHAERFT')">Entschärfen</button>
+    <button onclick="sendeStatus('SCHARF')">Scharf stellen</button>
+  </div>
 
-async function loadStatus() {
-  try {
-    const res = await fetch(`${API_URL}?user_id=eq.${USER_ID}&select=status,ae,alarm`, {
-      method: "GET",
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": "Bearer " + API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+  <div class="ae-controls">
+    <p><strong>Grenzwert ändern (Webmodus):</strong></p>
+    <input type="number" id="ae-input" min="5" max="200" />
+    <button onclick="setzeAE()">Übernehmen</button>
+  </div>
+
+  <script>
+    const supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/alarmanlage";
+    const apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
+
+    async function ladeStatus() {
+      const response = await fetch(supabaseUrl + "?select=status,ae,alarm&order=id.desc&limit=1", {
+        headers: { apikey: apiKey }
+      });
+      const daten = await response.json();
+      if (daten.length > 0) {
+        const info = daten[0];
+        document.getElementById("status-text").textContent = info.status;
+        document.getElementById("ae-value").textContent = info.ae;
+        document.getElementById("ae-input").value = info.ae;
+
+        if (info.alarm) {
+          zeigeAlarmBanner();
+        }
       }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!data || data.length === 0) throw new Error("Keine Daten gefunden");
-    const statusData = data[0];
+    }
 
-    document.getElementById("status").textContent = statusData.status;
-    document.getElementById("alarm").textContent = statusData.alarm ? "Alarm" : "Kein Alarm";
-    document.getElementById("ae").textContent = statusData.ae;
+    async function sendeStatus(neuerStatus) {
+      const aeWert = parseInt(document.getElementById("ae-input").value) || 50;
+      await fetch(supabaseUrl, {
+        method: "POST",
+        headers: {
+          apikey: apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status: neuerStatus, ae: aeWert })
+      });
+      ladeStatus();
+    }
 
-  } catch (e) {
-    console.error("Fehler beim Laden:", e);
-    document.getElementById("status").textContent = "Fehler";
-    document.getElementById("alarm").textContent = "Fehler";
-    document.getElementById("ae").textContent = "Fehler";
-  }
-}
+    async function setzeAE() {
+      const neuerAE = parseInt(document.getElementById("ae-input").value) || 50;
+      const aktuelleStatus = document.getElementById("status-text").textContent;
 
-async function updateStatus(newStatus) {
-  try {
-    const res = await fetch(`${API_URL}?user_id=eq.${USER_ID}`, {
-      method: "PATCH",
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": "Bearer " + API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({ status: newStatus })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    await loadStatus();
-  } catch (e) {
-    console.error("Fehler beim Aktualisieren:", e);
-  }
-}
+      await fetch(supabaseUrl, {
+        method: "POST",
+        headers: {
+          apikey: apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ ae: neuerAE, status: aktuelleStatus })
+      });
+      ladeStatus();
+    }
 
-async function toggleAlarm() {
-  try {
-    // Status umschalten (Beispiel: alarm toggeln)
-    const alarmText = document.getElementById("alarm").textContent;
-    const newAlarm = alarmText === "Alarm" ? false : true;
+    function zeigeAlarmBanner() {
+      const banner = document.getElementById("alarm-banner");
+      banner.style.display = "block";
 
-    const res = await fetch(`${API_URL}?user_id=eq.${USER_ID}`, {
-      method: "PATCH",
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": "Bearer " + API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({ alarm: newAlarm })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    await loadStatus();
-  } catch (e) {
-    console.error("Fehler beim Alarm-Schalten:", e);
-  }
-}
+      setTimeout(() => {
+        banner.style.display = "none";
+      }, 30000); // Banner nach 30 Sek. ausblenden
+    }
 
-window.onload = () => {
-  loadStatus();
-  setInterval(loadStatus, 5000);
-
-  document.getElementById("toggleStatus").addEventListener("click", async () => {
-    const currentStatus = document.getElementById("status").textContent;
-    const newStatus = currentStatus === "1" ? 0 : 1;
-    await updateStatus(newStatus);
-  });
-
-  document.getElementById("toggleAlarm").addEventListener("click", async () => {
-    await toggleAlarm();
-  });
-};
-</script>
-
+    setInterval(ladeStatus, 3000);
+    ladeStatus();
+  </script>
 </body>
 </html>
