@@ -3,110 +3,109 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Alarmanlage Steuerung</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width:400px; margin:20px auto; padding:10px; background:#f0f0f0; border-radius:8px; }
-  #alarmMessage { display:none; background:red; color:white; font-size:2rem; text-align:center; padding:10px; margin-bottom:15px; border-radius:4px; }
-  label { display:block; margin-top:15px; }
-  select, input { width:100%; padding:8px; margin-top:5px; font-size:1rem; }
-  button { margin-top:20px; padding:10px; width:100%; font-size:1rem; background:#2a7ae2; color:white; border:none; border-radius:4px; }
-  #statusMessage { margin-top:20px; min-height:1.5em; }
-</style>
+<title>Alarmanlage Websteuerung</title>
 </head>
 <body>
-  <h2>Alarmanlage Steuerung</h2>
-  <div id="alarmMessage">⚠️ ALARM AKTIV!</div>
 
-  <label for="statusSelect">Status:</label>
-  <select id="statusSelect">
-    <option value="0">Aus</option>
-    <option value="1">Entschärft</option>
-    <option value="2">Scharf</option>
-  </select>
+<h1>Alarmanlage Websteuerung</h1>
 
-  <label for="aeInput">Alarmentfernung (AE):</label>
-  <input id="aeInput" type="number" min="0" max="500" />
+<div>Status: <span id="status">lade...</span></div>
+<div>Alarm: <span id="alarm">lade...</span></div>
+<div>AE Wert: <span id="ae">lade...</span></div>
 
-  <button id="saveBtn">Speichern</button>
-  <div id="statusMessage">Lade Daten…</div>
+<button id="toggleStatus">Status wechseln</button>
+<button id="toggleAlarm">Alarm an/aus</button>
 
-  <script>
-    const API_BASE = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
-    const API_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...bvFzxtX4";
-    const UID      = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
+<script>
+const API_URL = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
+const USER_ID = "ae3e82b9-eedf-49d8-afdc-afcbc9da9669";
+const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4";
 
-    const alarmDiv     = document.getElementById("alarmMessage");
-    const sel          = document.getElementById("statusSelect");
-    const aeIn         = document.getElementById("aeInput");
-    const btnSave      = document.getElementById("saveBtn");
-    const statusMsg    = document.getElementById("statusMessage");
-    let notified       = false;
-
-    async function loadStatus() {
-      try {
-        const url = `${API_BASE}?user_id=eq.${UID}&select=status,ae,alarm`;
-        const res = await fetch(url, {
-          headers: {
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${API_KEY}`
-          }
-        });
-        if (!res.ok) throw new Error(res.status);
-        const [row] = await res.json();
-        sel.value = row.status;
-        aeIn.value = row.ae;
-        showAlarm(row.alarm);
-        statusMsg.textContent = "Daten geladen.";
-      } catch(e) {
-        statusMsg.textContent = "Fehler: " + e;
+async function loadStatus() {
+  try {
+    const res = await fetch(`${API_URL}?user_id=eq.${USER_ID}&select=status,ae,alarm`, {
+      method: "GET",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       }
-    }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data || data.length === 0) throw new Error("Keine Daten gefunden");
+    const statusData = data[0];
 
-    async function saveStatus() {
-      btnSave.disabled = true;
-      statusMsg.textContent = "Speichere…";
-      try {
-        const body = { status: +sel.value, ae: +aeIn.value };
-        const res = await fetch(`${API_BASE}?user_id=eq.${UID}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${API_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(body)
-        });
-        if (!res.ok) throw new Error(res.status);
-        statusMsg.textContent = "Erfolgreich gespeichert.";
-      } catch(e) {
-        statusMsg.textContent = "Fehler: " + e;
-      } finally {
-        btnSave.disabled = false;
-      }
-    }
+    document.getElementById("status").textContent = statusData.status;
+    document.getElementById("alarm").textContent = statusData.alarm ? "Alarm" : "Kein Alarm";
+    document.getElementById("ae").textContent = statusData.ae;
 
-    function showAlarm(active) {
-      if (active) {
-        alarmDiv.style.display = 'block';
-        if (!notified && Notification.permission === 'granted') {
-          new Notification("⚠️ Alarm aktiviert!");
-          notified = true;
-        }
-      } else {
-        alarmDiv.style.display = 'none';
-        notified = false;
-      }
-    }
+  } catch (e) {
+    console.error("Fehler beim Laden:", e);
+    document.getElementById("status").textContent = "Fehler";
+    document.getElementById("alarm").textContent = "Fehler";
+    document.getElementById("ae").textContent = "Fehler";
+  }
+}
 
-    // Polling
-    setInterval(loadStatus, 5000);
-    window.onload = () => {
-      if (Notification.permission === "default")
-        Notification.requestPermission();
-      loadStatus();
-    };
-    btnSave.addEventListener("click", saveStatus);
-  </script>
+async function updateStatus(newStatus) {
+  try {
+    const res = await fetch(`${API_URL}?user_id=eq.${USER_ID}`, {
+      method: "PATCH",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await loadStatus();
+  } catch (e) {
+    console.error("Fehler beim Aktualisieren:", e);
+  }
+}
+
+async function toggleAlarm() {
+  try {
+    // Status umschalten (Beispiel: alarm toggeln)
+    const alarmText = document.getElementById("alarm").textContent;
+    const newAlarm = alarmText === "Alarm" ? false : true;
+
+    const res = await fetch(`${API_URL}?user_id=eq.${USER_ID}`, {
+      method: "PATCH",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ alarm: newAlarm })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await loadStatus();
+  } catch (e) {
+    console.error("Fehler beim Alarm-Schalten:", e);
+  }
+}
+
+window.onload = () => {
+  loadStatus();
+  setInterval(loadStatus, 5000);
+
+  document.getElementById("toggleStatus").addEventListener("click", async () => {
+    const currentStatus = document.getElementById("status").textContent;
+    const newStatus = currentStatus === "1" ? 0 : 1;
+    await updateStatus(newStatus);
+  });
+
+  document.getElementById("toggleAlarm").addEventListener("click", async () => {
+    await toggleAlarm();
+  });
+};
+</script>
+
 </body>
 </html>
