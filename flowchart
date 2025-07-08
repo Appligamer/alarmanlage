@@ -1,0 +1,52 @@
+[Start]
+  |
+  v
+[WiFi verbinden]
+  |
+  v
+[Initialisierung (LCD, Pins, etc.)]
+  |
+  v
+[Loop]
+  |
+  v
+[AE-Wert vom Poti lesen]
+  |
+  v
+{AE >= 500? (Webmodus)}
+ /       \
+Ja         Nein
+|           |
+v           v
+[fetchWebStatus()]   [Button gedrückt?]
+|           \            |
+v            Nein        Ja
+[Status + Alarm vom Web]   v
+              [Status erhöhen]
+              [Alarm auf false setzen]
+              [sendWebStatus()]
+                          |
+                          v
+               [Entfernung messen]
+                          |
+                          v
+              {Status == 2 && Entfernung < AE?}
+                          / \
+                         Ja  Nein
+                         |     |
+                         v     v
+                 [triggerAlarm()] 
+                 [alarmStatus = true]
+                 [sendWebStatus()]
+                         |
+                         v
+                   [updateStatusLED()]
+                         |
+                         v
+                    [LCD aktualisieren]
+                         |
+                         v
+                      [delay(500)]
+                         |
+                         v
+                        [Loop]
