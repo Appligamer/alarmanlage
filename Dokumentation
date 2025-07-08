@@ -1,0 +1,63 @@
+Projekt: Arduino-basierte Alarmanlage mit Webanbindung
+Zeitraum: 13.09.2024 – 08.07.2025
+
+Phase 1: Reine Arduino-Steuerung (Sept. 2024 – Mai 2025)
+
+Fr, 13.09.2024
+Projektstart. Ziel: Bau einer autarken Alarmanlage mit Ultraschallsensor. Diskussion zu Funktionsumfang: Abstandsmessung, AE (Alarmentfernung) einstellbar, RGB-LED als Statusanzeige.
+
+Mi, 18.09.2024
+HC-SR04 Sensor getestet. Abstand wird stabil gemessen. Daten am seriellen Monitor verifiziert.
+
+Fr, 20.09.2024
+Poti wird zur AE-Festlegung verwendet. Mapping auf 0–200 cm funktioniert. Vergleich Abstand < AE geplant.
+
+Mi, 25.09.2024
+RGB-LED testweise verbaut. Farben über Digitalausgänge gesteuert. Erste Statusanzeige: grün = scharf, blau = entschärft.
+
+Fr, 27.09.2024
+Zustandsmaschine programmiert: Knopf wechselt Status zwischen AUS, ENTSCHÄRFT und SCHARF. Übergänge getestet.
+
+Mi, 02.10.2024
+Alarmfunktion: Wenn „SCHARF“ & Abstand < AE → LED blinkt rot. Timerfunktion implementiert.
+
+Fr, 04.10.2024
+Stromsparlogik: Bei AUS wird LED deaktiviert, serieller Monitor pausiert. Optimierung für Dauerbetrieb.
+
+Mi, 09.10.2024
+LCD-Display eingebaut (I2C). Erste Ausgabe: Abstandswert und AE. Anzeige alle 500ms aktualisiert.
+
+Fr, 11.10.2024
+Anzeigelogik erweitert: LCD zeigt zusätzlich Status (AUS/ENTSCHÄRFT/SCHARF). Testlauf über Nacht erfolgreich.
+
+Mi, 16.10.2024
+Hardware fixiert auf Lochrasterplatine. Pinbelegung finalisiert. Struktur für saubere Kabelführung gelegt.
+
+Fr, 18.10.2024
+Entwurf: spätere Webanbindung über zweiten Mikrocontroller angedacht. Idee aber noch zurückgestellt.
+
+Mi, 06.11.2024
+Langzeitstabilität getestet: Keine Fehlmessungen nach 12 Stunden. Stromverbrauch gemessen.
+
+Phase 2: ESP32 & Webinterface (ab Juni 2025)
+
+Mi, 05.06.2025
+ESP32 erstmals bestellt und eingebunden. Ziel: Terminal mit LCD, Statusknopf, RGB und WLAN. Arduino bleibt Sensor-Einheit. Verbindung per Serial geplant.
+
+Fr, 07.06.2025
+Sensor-Arduino sendet Messwerte über Serial zum ESP32. Kommunikation stabil bei 115200 Baud.
+
+Mi, 26.06.2025
+LCD am ESP zeigt 4 Werte: Abstand, AE lokal, AE Web, Status. Anzeige aktualisiert sich sekündlich.
+
+Fr, 28.06.2025
+RGB-LED reagiert auf Statusänderung. Knopf schaltet zuverlässig zwischen AUS/ENTSCHÄRFT/SCHARF.
+
+Mi, 03.07.2025
+Langdruck am Knopf aktiviert WLAN. ESP32 verbindet sich mit SSID WLAN-788722. LED zeigt Verbindung an.
+
+Fr, 05.07.2025
+Webmodus eingebaut: Wenn Poti ≥ 500 → Steuerung via Webseite. AE über zwei Buttons änderbar. Lokaler Poti deaktiviert.
+
+Mo, 08.07.2025
+Seite jahresarbeit-jacob.netlify.app zeigt Status und Alarmzustand live. Alarm wird über Web ausgelöst und zurückgesetzt. Alarmbalken in Rot. Supabase-Datenbank verbindet korrekt. Verzweiflung folg, da nicht mehr genug zeit
