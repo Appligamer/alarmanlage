@@ -1,0 +1,220 @@
+ALARMANLAGEN CODE (nicht vollständig)
+
+TERMINAL
+#include <LiquidCrystal_I2C.h>
+
+#include <Wire.h>
+
+#include <AutoConnect.h>
+#include <HTTPClient.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+AutoConnect portal;
+
+const char* ssid = "Dukar"; // Ersetzen Sie dies durch Ihren WLAN-SSID
+const char* password = "KarmapaChenno-108!"; // Ersetzen Sie dies durch Ihr WLAN-Passwort
+
+const int POTI_PIN = 34;
+const int LED_R = 25;
+const int LED_G = 26;
+const int LED_B = 27;
+const int BUTTON_PIN = 12;
+
+bool alarmAktiv = false;
+bool webMode = false;
+unsigned long lastBlinkTime = 0;
+bool lcdBlinkState = false;
+unsigned long lastSerialDataTime = 0;
+const unsigned long serialTimeout = 1000; // 1 Sekunde Timeout
+unsigned long buttonPressStart = 0;
+
+const char* supabaseUrl = "https://rshbpsxqbabpxhdztozz.supabase.co/rest/v1/anlage_status";
+const char* supabaseApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzaGJwc3hxYmFicHhoZHp0b3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjYyMDgsImV4cCI6MjA2NTk0MjIwOH0.4MG6d3QkPv7hj7PcCacZgXp-8YRD_2ANHd7bvFzxtX4"; // Ersetzen Sie dies durch Ihren API-Schlüssel
+
+void setup() { 
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, 16, 17); // Sensor an Pin 16 und 17
+  Wire.begin(21, 22);
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Starte...");
+  delay(1000);
+  lcd.clear();
+
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  // WLAN-Verbindung herstellen
+  connectToWiFi();
+
+  // AutoConnect initialisieren
+  portal.begin();
+}
+
+void loop() {
+  portal.handleClient(); // AutoConnect-Client verarbeiten
+
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    if (buttonPressStart == 0) {
+      buttonPressStart = millis();
+    } else if (millis() - buttonPressStart >= 5000) {
+      webMode = !webMode;
+      buttonPressStart = 0;
+      lcd.clear();
+      lcd.print(webMode ? "Web Modus ON" : "Web Modus OFF");
+      delay(2000);
+    }
+  } else {
+    buttonPressStart = 0;
+  }
+
+  if (webMode) {
+    handleWebMode();
+  } else {
+    handleNormalMode();
+  }
+
+  delay(100);
+}
+
+void connectToWiFi() {
+  Serial.print("Verbinde mit WLAN...");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Verbunden!");
+}
+
+void handleNormalMode() {
+  int potiWert = analogRead(POTI_PIN);
+  int ae = map(potiWert, 0, 4095, 5, 100);
+
+  long entfernung = entfernungSeriellLesen();
+  if (entfernung < 0) {
+    Serial.println("FEHLER: Keine gültige Entfernung empfangen.");
+    delay(200);
+    return;
+  }
+
+  Serial.print("Entfernung: ");
+  Serial.print(entfernung);
+  Serial.print(" cm | AE: ");
+  Serial.print(ae);
+  Serial.print(" cm | Status: ");
+  Serial.println(entfernung <= ae ? "ALARM" : "OK");
+
+  if (entfernung <= ae) {
+    alarmAktiv = true;
+    setLED(255, 0, 0);
+    if (millis() - lastBlinkTime > 500) {
+      lcdBlinkState = !lcdBlinkState;
+      lastBlinkTime = millis();
+      lcd.clear();
+      if (lcdBlinkState) {
+        lcd.setCursor(3, 0);
+        lcd.print("!!! ALARM !!!");
+      }
+    }
+  } else {
+    alarmAktiv = false;
+    setLED(0, 255, 0);
+    lcdAnzeige(entfernung, ae);
+  }
+}
+
+void handleWebMode() {
+  HTTPClient http;
+  http.begin(supabaseUrl);
+  http.addHeader("apikey", supabaseApiKey);
+  int httpResponseCode = http.GET();
+
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.println(response);
+    // Hier können Sie die Antwort verarbeiten und den Status aktualisieren
+    // Beispiel: Status und AE aus der Antwort extrahieren
+    // und auf dem LCD anzeigen
+    // JSON-Verarbeitung hier hinzufügen
+  } else {
+    Serial.print("Fehler bei der Anfrage: ");
+    Serial.println(httpResponseCode);
+  }
+  http.end();
+}
+
+long entfernungSeriellLesen() {
+  static String input = "";
+  while (Serial2.available()) {
+    char c = Serial2.read();
+    lastSerialDataTime = millis();
+
+    if (c == '\n' || c == '\r') {
+      if (input.length() > 0) {
+        long dist = input.toInt();
+        input = "";
+        if (dist > 0 && dist < 500) {
+          return dist;
+        } else {
+          return -1;
+        }
+      }
+    } else if (isDigit(c)) {
+      input += c;
+    } else {
+      input = "";
+    }
+  }
+
+  if (millis() - lastSerialDataTime > serialTimeout) {
+    input = "";
+  }
+
+  return -1;
+}
+
+void lcdAnzeige(long dist, int ae) {
+  lcd.setCursor(0, 0);
+  lcd.print("Dist: ");
+  lcd.print(dist);
+  lcd.print("cm   ");
+  lcd.setCursor(0, 1);
+  lcd.print("AE: ");    
+  lcd.print(ae);
+  lcd.print("cm     ");
+}
+
+void setLED(int r, int g, int b) {
+  analogWrite(LED_R, r);
+  analogWrite(LED_G, g);
+  analogWrite(LED_B, b);
+}
+SENSOR 
+#include <NewPing.h>
+
+#define TRIGGER_PIN  9   // Trigger Pin Ultraschallsensor
+#define ECHO_PIN     10  // Echo Pin Ultraschallsensor
+#define MAX_DISTANCE 500 // max Distanz in cm (5 Meter)
+
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  delay(100); // 100 ms Pause
+
+  unsigned int distance = sonar.ping_cm();
+
+  if (distance == 0) {
+    distance = MAX_DISTANCE; // kein Echo = max Distanz
+  }
+
+  Serial.println(distance);
+}
