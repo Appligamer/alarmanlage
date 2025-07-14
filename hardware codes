@@ -12,7 +12,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 AutoConnect portal;
 
 const char* ssid = "Dukar"; // Ersetzen Sie dies durch Ihren WLAN-SSID
-const char* password = "KarmapaChenno-108!"; // Ersetzen Sie dies durch Ihr WLAN-Passwort
+const char* password = "DEIN_PASSWORT!"; // Ersetzen Sie dies durch Ihr WLAN-Passwort
 
 const int POTI_PIN = 34;
 const int LED_R = 25;
